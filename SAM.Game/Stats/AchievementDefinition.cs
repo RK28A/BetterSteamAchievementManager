@@ -34,11 +34,7 @@ namespace SAM.Game.Stats
 
         public override string ToString()
         {
-            return string.Format(
-                System.Globalization.CultureInfo.CurrentCulture,
-                "{0}: {1}",
-                this.Name ?? this.Id ?? base.ToString(),
-                this.Permission);
+            return $"{this.Name ?? this.Id ?? base.ToString()}: {this.Permission}";
         }
     }
 }
