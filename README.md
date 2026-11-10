@@ -18,10 +18,10 @@ Les sommes SHA-256 sont fournies dans les Releases. Les exécutables ne sont pas
 1. Les jeux s’affichent à gauche, avec recherche et filtres (jeux, démos, mods, autres). **App ID / Ajouter un jeu** ajoute un jeu possédé sans effacer la bibliothèque existante.
 2. Cliquez sur un jeu : ses succès apparaissent à droite dans la même fenêtre, avec image, nom, description, état et date de déblocage lorsqu’elle est disponible.
 3. Utilisez **Tout sélectionner**, **Tout désélectionner**, **Inverser**, ou **Non débloqués**. Un clic sur une carte ou la touche Espace bascule sa sélection ; Ctrl+A sélectionne les cartes visibles. Les succès protégés restent en lecture seule.
-4. **Débloquer la sélection** ou **Verrouiller la sélection** prépare les changements. Les cartes portent une mention « en attente d’enregistrement ». Sélectionner une carte ne modifie jamais à lui seul un succès.
+4. **Débloquer** ou **Verrouiller** prépare les changements. Les cartes portent une mention « en attente d’enregistrement ». Sélectionner une carte ne modifie jamais à lui seul un succès.
 5. **Enregistrer les modifications** envoie les changements. L’application attend la confirmation de Steam avant de les annoncer comme enregistrés.
 
-La recherche et les filtres conservent les sélections et les changements masqués. Les opérations de sélection portent sur les cartes affichées ; **Tout désélectionner** vide aussi les sélections masquées. **Annuler les modifications** rétablit les valeurs de succès et de statistiques chargées. L’onglet **Statistiques**, l’accord d’édition, l’actualisation et la réinitialisation restent accessibles.
+La recherche et les filtres conservent les sélections et les changements masqués. Les opérations de sélection portent sur les cartes affichées ; **Tout désélectionner** vide aussi les sélections masquées. **Annuler** rétablit les valeurs de succès et de statistiques chargées. L’onglet **Statistiques**, l’accord d’édition, l’actualisation et la réinitialisation restent accessibles.
 
 Changer de jeu conserve sa vue, sa sélection et sa file dans un processus Steam distinct. Fermer la bibliothèque arrête ses processus après confirmation ; les changements déjà envoyés ne sont pas annulés. Les vues se ferment aussi si leur bibliothèque disparaît. Les sélections et files ne sont pas persistées après fermeture.
 

@@ -37,7 +37,7 @@ namespace SAM.Picker
             Text = "BetterSteamAchievementManager";
             Icon = (Icon)new ComponentResourceManager(typeof(GamePicker)).GetObject("$this.Icon");
             ClientSize = new Size(1400, 860);
-            MinimumSize = new Size(1080, 700);
+            MinimumSize = new Size(1000, 650);
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Segoe UI", 10);
@@ -52,7 +52,7 @@ namespace SAM.Picker
             split.Size = ClientSize;
             split.SplitterDistance = 292;
             split.Panel1MinSize = 245;
-            split.Panel2MinSize = 720;
+            split.Panel2MinSize = 680;
             var libraryTop = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(16, 10, 12, 8) };
             _LibraryCount = SteamTheme.Label("VOTRE BIBLIOTHÈQUE", 10, SteamTheme.Muted);
             _LibraryCount.Dock = DockStyle.Top;
