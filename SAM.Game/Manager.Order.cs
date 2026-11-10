@@ -22,7 +22,7 @@ namespace SAM.Game
             string fallback = _Demo ? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BSAM-Demo-" + System.Diagnostics.Process.GetCurrentProcess().Id, "cart.json") : OrderPaths.Cart;
             _CartStore = new JsonStore<OrderCart>(cartPath ?? fallback);
             if (commandPath != null) _OrderCommands = new JsonStore<OrderCommand>(commandPath);
-            var add = new Button { Text = "+ Achievement Order", AutoSize = true, Margin = new Padding(3), BackColor = SAM.UI.SteamTheme.Blue, ForeColor = SAM.UI.SteamTheme.Text, FlatStyle = FlatStyle.Flat, Padding = new Padding(10, 5, 10, 5) };
+            var add = new SAM.UI.ModernButton { Text = "+ Ajouter au panier", Tag = "primary", AutoSize = true, Margin = new Padding(3), BackColor = SAM.UI.SteamTheme.Blue, ForeColor = SAM.UI.SteamTheme.Text, FlatStyle = FlatStyle.Flat, Padding = new Padding(10, 5, 10, 5) };
             add.FlatAppearance.BorderSize = 0;
             add.Click += (_, _) => AddSelectionToCart();
             _SelectionActions.Controls.Add(add);
@@ -58,7 +58,7 @@ namespace SAM.Game
                 if (!cart.Games.Any(g => g.GameId == command.GameId && g.Achievements.Any(a => a.Id == command.AchievementId)))
                 { FinishOrderCommand(command.Id, "failed", "Le succès ne fait plus partie du panier."); return; }
                 if (_AwaitingStats) return;
-                if (!_StatsReady || _QueueRunning || _ManualSaving || _SavingAchievement != null || HasPendingChanges)
+                if (!_StatsReady || _ManualSaving || HasPendingChanges)
                 { FinishOrderCommand(command.Id, "failed", "Ce jeu est occupé ou possède des changements non enregistrés."); return; }
                 // Re-read the account state before each command, including after a restart.
                 // Do this only once per command and only after rejecting pending manual changes.

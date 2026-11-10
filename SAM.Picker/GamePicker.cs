@@ -45,10 +45,7 @@ namespace SAM.Picker
         private readonly List<GameInfo> _FilteredGames;
         private bool _RefreshingGames;
 
-        private readonly object _LogoLock;
-        private readonly HashSet<string> _LogosAttempting;
-        private readonly HashSet<string> _LogosAttempted;
-        private readonly ConcurrentQueue<GameInfo> _LogoQueue;
+        private readonly SAM.UI.CachedArtwork _LibraryArtwork = new();
 
         private readonly API.Callbacks.AppDataChanged _AppDataChangedCallback;
 
@@ -57,12 +54,10 @@ namespace SAM.Picker
             this._Demo = demo;
             this._Games = new();
             this._FilteredGames = new();
-            this._LogoLock = new();
-            this._LogosAttempting = new();
-            this._LogosAttempted = new();
-            this._LogoQueue = new();
-
             this.InitializeComponent();
+            _LibraryArtwork.Loaded += (_, _) => { if (!_GameListView.IsDisposed) _GameListView.Invalidate(); };
+            FormClosed += (_, _) => _LibraryArtwork.Dispose();
+            API.ImageCache.Shared.Trim();
 
             Bitmap blank = new(this._LogoImageList.ImageSize.Width, this._LogoImageList.ImageSize.Height);
             using (var g = Graphics.FromImage(blank))
@@ -74,6 +69,7 @@ namespace SAM.Picker
 
             SAM.UI.WindowChrome.Apply(this);
             this.InitializeOrderCart();
+            this.InitializeTray();
             this._SteamClient = client;
             InitializeLibraryPreferences();
 
@@ -272,91 +268,8 @@ namespace SAM.Picker
             e.Index = index < 0 ? -1 : index;
         }
 
-        private void DoDownloadLogo(object sender, DoWorkEventArgs e)
-        {
-            var info = (GameInfo)e.Argument;
-
-
-
-            using (WebClient downloader = new())
-            {
-                try
-                {
-                    var data = downloader.DownloadData(new Uri(info.ImageUrl));
-                    using (MemoryStream stream = new(data, false))
-                    {
-                        using var decoded = new Bitmap(stream);
-                        Bitmap bitmap = new(decoded);
-                        e.Result = new LogoInfo(info.Id, bitmap);
-                    }
-                }
-                catch (Exception)
-                {
-                    e.Result = new LogoInfo(info.Id, null);
-                }
-            }
-        }
-
-        private void OnDownloadLogo(object sender, RunWorkerCompletedEventArgs e)
-        {
-            if (IsDisposed || _ClosingLibrary || e.Error != null || e.Cancelled) return;
-            if (e.Result is LogoInfo logoInfo &&
-                logoInfo.Bitmap != null &&
-                this._Games.TryGetValue(logoInfo.Id, out var gameInfo) == true)
-            {
-                this._GameListView.BeginUpdate();
-                var imageIndex = this._LogoImageList.Images.Count;
-                this._LogoImageList.Images.Add(gameInfo.ImageUrl, logoInfo.Bitmap);
-                gameInfo.ImageIndex = imageIndex;
-                this._GameListView.EndUpdate();
-                this._GameListView.Invalidate();
-                logoInfo.Bitmap.Dispose();
-            }
-
-            this.DownloadNextLogo();
-        }
-
-        private void DownloadNextLogo()
-        {
-            lock (this._LogoLock)
-            {
-
-                if (this._LogoWorker.IsBusy == true)
-                {
-                    return;
-                }
-
-                GameInfo info;
-                while (true)
-                {
-                    if (this._LogoQueue.TryDequeue(out info) == false)
-                    {
-                        this._DownloadStatusLabel.Visible = false;
-                        return;
-                    }
-
-                    if (info.Item == null)
-                    {
-                        continue;
-                    }
-
-                    if (this._FilteredGames.Contains(info) == false ||
-                        info.Item.Bounds.IntersectsWith(this._GameListView.ClientRectangle) == false)
-                    {
-                        this._LogosAttempting.Remove(info.ImageUrl);
-                        continue;
-                    }
-
-                    break;
-                }
-
-                this._DownloadStatusLabel.Text = $"Downloading {1 + this._LogoQueue.Count} game icons...";
-                this._DownloadStatusLabel.Visible = true;
-
-                this._LogosAttempted.Add(info.ImageUrl);
-                this._LogoWorker.RunWorkerAsync(info);
-            }
-        }
+        private void DownloadNextLogo() => _GameListView.Invalidate();
+        private void AddGameToLogoQueue(GameInfo info) { info.ImageUrl = GetGameImageUrl(info.Id); }
 
         private string GetGameImageUrl(uint id)
         {
@@ -386,35 +299,6 @@ namespace SAM.Picker
             }
 
             return null;
-        }
-
-        private void AddGameToLogoQueue(GameInfo info)
-        {
-            if (info.ImageIndex > 0)
-            {
-                return;
-            }
-
-            var imageUrl = GetGameImageUrl(info.Id);
-            if (string.IsNullOrEmpty(imageUrl) == true)
-            {
-                return;
-            }
-
-            info.ImageUrl = imageUrl;
-
-            int imageIndex = this._LogoImageList.Images.IndexOfKey(imageUrl);
-            if (imageIndex >= 0)
-            {
-                info.ImageIndex = imageIndex;
-            }
-            else if (
-                this._LogosAttempting.Contains(imageUrl) == false &&
-                this._LogosAttempted.Contains(imageUrl) == false)
-            {
-                this._LogosAttempting.Add(imageUrl);
-                this._LogoQueue.Enqueue(info);
-            }
         }
 
         private bool OwnsGame(uint id)
@@ -529,34 +413,29 @@ namespace SAM.Picker
             using (var brush = new SolidBrush(selected ? SAM.UI.SteamTheme.Surface : SAM.UI.SteamTheme.Sidebar))
                 e.Graphics.FillRectangle(brush, e.Bounds);
             var game = this._FilteredGames[e.ItemIndex];
-            if (game.ImageIndex >= 0 && game.ImageIndex < this._LogoImageList.Images.Count)
-                e.Graphics.DrawImage(this._LogoImageList.Images[game.ImageIndex], e.Bounds.Left + 10, e.Bounds.Top + 4, 40, 24);
+            if (!_Demo && game.ImageUrl == null) game.ImageUrl = GetGameImageUrl(game.Id) ?? $"https://cdn.cloudflare.steamstatic.com/steam/apps/{game.Id}/header.jpg";
+            var artwork = _Demo ? null : _LibraryArtwork.Get(game.ImageUrl);
+            var cover = new Rectangle(e.Bounds.Left + 14, e.Bounds.Top + 10, 44, 32);
+            if (artwork != null) e.Graphics.DrawImage(artwork, cover);
+            else
+            {
+                using var tile = new SolidBrush(SAM.UI.SteamTheme.Surface); e.Graphics.FillRectangle(tile, cover);
+                TextRenderer.DrawText(e.Graphics, game.Name.Substring(0, 1).ToUpperInvariant(), Font, cover, SAM.UI.SteamTheme.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
             var progress = _LibraryProgress.Games.FirstOrDefault(g => g.GameId == game.Id);
-            var textRect = new Rectangle(e.Bounds.Left + 60, e.Bounds.Top + 2, Math.Max(0, e.Bounds.Width - 68), 22);
+            var textRect = new Rectangle(e.Bounds.Left + 70, e.Bounds.Top + 8, Math.Max(0, e.Bounds.Width - 82), 22);
             string name = (_LibraryPreferences.Favorites.Contains(game.Id) ? "★ " : "") + game.Name;
             TextRenderer.DrawText(e.Graphics, name, this.Font, textRect, selected ? SAM.UI.SteamTheme.Accent : SAM.UI.SteamTheme.Text,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             string detail = (game.Installed ? "Installé" : "Non installé") + (progress == null ? " · succès —" : $" · {progress.Unlocked}/{progress.Total}");
-            TextRenderer.DrawText(e.Graphics, detail, _LibraryDetailFont, new Rectangle(textRect.X, e.Bounds.Top + 25, textRect.Width, 18), SAM.UI.SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            TextRenderer.DrawText(e.Graphics, detail, _LibraryDetailFont, new Rectangle(textRect.X, e.Bounds.Top + 32, textRect.Width, 18), SAM.UI.SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             if (progress != null && progress.Total > 0)
             {
                 using var bg = new SolidBrush(SAM.UI.SteamTheme.Surface); using var fill = new SolidBrush(SAM.UI.SteamTheme.Accent);
                 var bar = new Rectangle(textRect.X, e.Bounds.Bottom - 4, textRect.Width, 2);
                 e.Graphics.FillRectangle(bg, bar); bar.Width = bar.Width * progress.Unlocked / progress.Total; e.Graphics.FillRectangle(fill, bar);
             }
-            if (this._Demo) return;
 
-            if (e.Item.Bounds.IntersectsWith(this._GameListView.ClientRectangle) == false)
-            {
-                return;
-            }
-
-            var info = this._FilteredGames[e.ItemIndex];
-            if (info.ImageIndex <= 0)
-            {
-                this.AddGameToLogoQueue(info);
-                this.DownloadNextLogo();
-            }
         }
     }
 }

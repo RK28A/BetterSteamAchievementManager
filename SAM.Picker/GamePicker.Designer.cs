@@ -20,7 +20,7 @@ namespace SAM.Picker
         private ToolStripMenuItem _FilterGamesMenuItem, _FilterJunkMenuItem, _FilterDemosMenuItem, _FilterModsMenuItem;
         private StatusStrip _PickerStatusStrip;
         private ToolStripStatusLabel _DownloadStatusLabel, _PickerStatusLabel;
-        private BackgroundWorker _LogoWorker, _ListWorker;
+        private BackgroundWorker _ListWorker;
         private Panel _GameHost;
         private Label _LibraryCount;
 
@@ -43,21 +43,21 @@ namespace SAM.Picker
             Font = new Font("Segoe UI", 10);
             var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 2, FixedPanel = FixedPanel.Panel1, BackColor = SteamTheme.Surface };
             split.Size = ClientSize;
-            split.SplitterDistance = 292;
+            split.SplitterDistance = 260;
             split.Panel1MinSize = 245;
             split.Panel2MinSize = 680;
-            var libraryTop = new Panel { Dock = DockStyle.Top, Height = 135, Padding = new Padding(16, 10, 12, 8) };
+            var libraryTop = new Panel { Dock = DockStyle.Top, Height = 112, Padding = new Padding(16, 10, 12, 8) };
             _LibraryCount = SteamTheme.Label("VOTRE BIBLIOTHÈQUE", 10, SteamTheme.Muted);
             _LibraryCount.Dock = DockStyle.Top;
             var search = new ToolStrip { Dock = DockStyle.Bottom, AutoSize = false, Height = 40 };
-            _SearchGameTextBox = new ToolStripTextBox { AutoSize = false, Width = 230, ToolTipText = "Rechercher dans la bibliothèque", AccessibleName = "Rechercher un jeu" };
+            _SearchGameTextBox = new ToolStripTextBox { AutoSize = false, Width = 212, ToolTipText = "Rechercher dans la bibliothèque", AccessibleName = "Rechercher un jeu" };
             _SearchGameTextBox.TextChanged += OnFilterUpdate;
             search.Items.Add(_SearchGameTextBox);
             _LibraryFilters = new ToolStrip { Dock = DockStyle.Bottom, Height = 34 };
             libraryTop.Controls.Add(_LibraryFilters);
             libraryTop.Controls.Add(search);
             libraryTop.Controls.Add(_LibraryCount);
-            _LogoImageList = new ImageList(components) { ImageSize = new Size(40, 48), ColorDepth = ColorDepth.Depth32Bit };
+            _LogoImageList = new ImageList(components) { ImageSize = new Size(40, 58), ColorDepth = ColorDepth.Depth32Bit };
             _GameListView = new MyListView { Dock = DockStyle.Fill, View = View.Details, HeaderStyle = ColumnHeaderStyle.None,
                 BorderStyle = BorderStyle.None, FullRowSelect = true, MultiSelect = false, HideSelection = false,
                 VirtualMode = true, OwnerDraw = true, SmallImageList = _LogoImageList, AccessibleName = "Bibliothèque de jeux" };
@@ -75,10 +75,10 @@ namespace SAM.Picker
             _GameHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0) };
             var empty = new HeroPanel { Dock = DockStyle.Fill, Padding = new Padding(50, 75, 30, 30) };
             var welcome = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Color.Transparent };
-            welcome.Controls.Add(SteamTheme.Label("VOTRE PROCHAINE RÉUSSITE", 11, SteamTheme.Accent));
-            welcome.Controls.Add(SteamTheme.Label("Chaque succès a sa place.", 28));
+            welcome.Controls.Add(SteamTheme.Label("BETTER ACHIEVEMENTS", 11, SteamTheme.Accent));
+            welcome.Controls.Add(SteamTheme.Label("Votre bibliothèque.\nÀ votre rythme.", 28));
             welcome.Controls.Add(SteamTheme.Label("Choisissez un jeu dans votre bibliothèque pour afficher ses succès.", 11, SteamTheme.Muted));
-            welcome.Controls.Add(SteamTheme.Label("Sélectionnez · Modifiez · Enregistrez", 12, SteamTheme.Accent));
+            welcome.Controls.Add(SteamTheme.Label("Succès   /   Panier   /   GameTime", 12, SteamTheme.Accent));
             empty.Controls.Add(welcome);
             _GameHost.Controls.Add(empty);
             split.Panel2.Controls.Add(_GameHost);
@@ -99,7 +99,7 @@ namespace SAM.Picker
             _FilterJunkMenuItem = Filter("Autres", false);
             _FilterDropDownButton.DropDownItems.AddRange(new ToolStripItem[] { _FilterGamesMenuItem, _FilterDemosMenuItem, _FilterModsMenuItem, _FilterJunkMenuItem });
             var about = new ToolStripMenuItem("À propos");
-            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.2\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
+            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.3\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
             _FilterDropDownButton.DropDownItems.Add(new ToolStripSeparator());
             _FilterDropDownButton.DropDownItems.Add(about);
             _PickerToolStrip.Items.AddRange(new ToolStripItem[] { _RefreshGamesButton, new ToolStripSeparator(), new ToolStripLabel("App ID"), _AddGameTextBox, _AddGameButton, new ToolStripSeparator(), _FilterDropDownButton });
@@ -107,9 +107,6 @@ namespace SAM.Picker
             _PickerStatusLabel = new ToolStripStatusLabel { Spring = true, TextAlign = ContentAlignment.MiddleLeft };
             _DownloadStatusLabel = new ToolStripStatusLabel { Visible = false };
             _PickerStatusStrip.Items.AddRange(new ToolStripItem[] { _PickerStatusLabel, _DownloadStatusLabel });
-            _LogoWorker = new BackgroundWorker();
-            _LogoWorker.DoWork += DoDownloadLogo;
-            _LogoWorker.RunWorkerCompleted += OnDownloadLogo;
             _ListWorker = new BackgroundWorker();
             _ListWorker.DoWork += DoDownloadList;
             _ListWorker.RunWorkerCompleted += OnDownloadList;
