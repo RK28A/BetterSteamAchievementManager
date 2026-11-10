@@ -386,9 +386,18 @@ namespace SAM.Game
                 return;
             }
 
-            if (this.LoadUserGameStatsSchema() == false)
+            try
             {
-                this._GameStatusLabel.Text = "Schéma Steam indisponible. Lancez le jeu une fois puis actualisez.";
+                if (this.LoadUserGameStatsSchema() == false)
+                {
+                    this._GameStatusLabel.Text = "Schéma Steam indisponible. Lancez le jeu une fois puis actualisez.";
+                    this._ReloadButton.Enabled = true;
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                this._GameStatusLabel.Text = "Impossible de lire le schéma Steam : " + e.Message;
                 this._ReloadButton.Enabled = true;
                 return;
             }

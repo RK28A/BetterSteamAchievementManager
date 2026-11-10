@@ -31,14 +31,18 @@ jobs:
       - name: Verify single EXE extraction
         shell: pwsh
         run: |
-          $app = Start-Process ./dist/BetterSteamAchievementManager.exe -ArgumentList '--extract-only' -Wait -PassThru
+          $standalone = Join-Path $env:RUNNER_TEMP 'BSAM-SingleFile'
+          New-Item $standalone -ItemType Directory -Force | Out-Null
+          Copy-Item ./dist/BetterSteamAchievementManager.exe $standalone
+          $singleExe = Join-Path $standalone 'BetterSteamAchievementManager.exe'
+          $app = Start-Process $singleExe -ArgumentList '--extract-only' -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "Single EXE extraction failed" }
           $cache = Get-ChildItem "$env:LOCALAPPDATA/BetterSteamAchievementManager" -Directory -Filter 'app-*' | Select-Object -First 1
           foreach ($name in @('SAM.Picker.exe', 'SAM.Game.exe', 'SAM.API.dll', 'System.Resources.Extensions.dll', 'LICENSE.txt')) {
             if (-not (Test-Path (Join-Path $cache.FullName $name))) { throw "Missing payload file: $name" }
           }
           'corrupted' | Set-Content (Join-Path $cache.FullName 'SAM.Picker.exe')
-          $app = Start-Process ./dist/BetterSteamAchievementManager.exe -ArgumentList '--extract-only' -Wait -PassThru
+          $app = Start-Process $singleExe -ArgumentList '--extract-only' -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "Cache repair failed" }
           if ((Get-FileHash ./upload/SAM.Picker.exe).Hash -ne (Get-FileHash (Join-Path $cache.FullName 'SAM.Picker.exe')).Hash) { throw "Cache was not repaired" }
       - name: Create portable ZIP and checksums
