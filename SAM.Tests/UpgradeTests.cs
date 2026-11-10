@@ -49,6 +49,29 @@ internal static class UpgradeTests
         restored.Start(between, TimeSpan.Zero);
         check(restored.Phase == OrderPhase.GameDelay && restored.Deadline == TimeSpan.FromMinutes(4), "restart preserves an inter-game pause");
         check(restored.Tick(TimeSpan.FromMinutes(4)) == null && restored.Deadline == TimeSpan.FromMinutes(64), "resuming between games still applies the next achievement delay");
+        using (var library = new SAM.Picker.GamePicker(null, true))
+        {
+            var coordinator = Field<OrderRunner>(library, "_Runner");
+            var savedCart = Field<JsonStore<OrderCart>>(library, "_OrderStore");
+            coordinator.Start(Cart(), TimeSpan.FromMinutes(-11));
+            // Supply a deterministic checkpoint so this UI test does not depend on random delays.
+            coordinator.Stop();
+            var deterministic = Cart();
+            deterministic.Games[0].Delay.Maximum = 3;
+            deterministic.GameDelay.Maximum = 5;
+            deterministic.Games[1].Delay.Maximum = 1;
+            coordinator.Start(deterministic, TimeSpan.FromMinutes(-11));
+            coordinator.Tick(TimeSpan.FromMinutes(-8)); coordinator.Confirm(620, "A", true, TimeSpan.FromMinutes(-8));
+            coordinator.Tick(TimeSpan.FromMinutes(-5)); coordinator.Confirm(620, "B", true, TimeSpan.FromMinutes(-5));
+            savedCart.Update(data => { data.Games = deterministic.Games; data.ActiveRun = "boundary-test"; data.LeaseUntilUtc = DateTime.UtcNow.AddMinutes(1); data.Checkpoint = coordinator.Snapshot(TimeSpan.Zero); });
+            typeof(SAM.Picker.GamePicker).GetField("_RunId", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(library, "boundary-test");
+            typeof(SAM.Picker.GamePicker).GetField("_LastLease", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(library, DateTime.UtcNow);
+            typeof(SAM.Picker.GamePicker).GetMethod("TickOrder", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(library, null);
+            var checkpoint = savedCart.Read().Checkpoint;
+            check(checkpoint.GameId == 400 && !checkpoint.BetweenGames && checkpoint.RemainingSeconds > 3590,
+                "coordinator saves a newly sampled countdown immediately at a game boundary");
+            coordinator.Stop();
+        }
         var bounds = OrderPlanning.Estimate(Cart());
         check(bounds.Minimum == TimeSpan.FromMinutes(71) && bounds.Maximum == TimeSpan.FromMinutes(155), "planning includes every achievement and each game transition exactly once");
         bounds = OrderPlanning.Estimate(between);
