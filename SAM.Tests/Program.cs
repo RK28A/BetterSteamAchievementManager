@@ -263,6 +263,10 @@ internal static class Program
                     Check(cartStore.Read().Games[0].Delay.Unit == SAM.API.Orders.TimeUnit.Hours && cartStore.Read().Games[0].Delay.Minimum == 2 && cartStore.Read().Games[0].Delay.Maximum == 8, "cart sliders persist per-game hour ranges");
                     Field<CheckBox>(library, "_BetweenGames").Checked = true;
                     Check(cartStore.Read().BetweenGames, "cart enables the inter-game timer");
+                    var gameRange = Field<SAM.Picker.RangeEditor>(library, "_GameRange");
+                    var settings = (ScrollableControl)gameRange.Parent;
+                    settings.ScrollControlIntoView(gameRange); Pump(100);
+                    Check(gameRange.Bottom <= settings.ClientSize.Height && gameRange.Top >= 0, "inter-game sliders remain reachable in a compact window");
                     Check(!Field<Button>(library, "_RunOrder").Enabled, "cart demonstration cannot execute Steam writes");
                     var orderPanel = Field<Panel>(library, "_OrderPanel");
                     var hostPanel = Field<Panel>(library, "_GameHost");

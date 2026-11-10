@@ -21,9 +21,13 @@ namespace SAM.Picker
         {
             Height = 155; Dock = DockStyle.Top; Padding = new Padding(10, 8, 10, 8);
             _Unit.Items.AddRange(new object[] { "Minutes", "Heures", "Jours" });
-            var row = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32 };
-            row.Controls.Add(SteamTheme.Label(title, 9, SteamTheme.Muted));
-            row.Controls.Add(_Unit);
+            var row = new Panel { Dock = DockStyle.Top, Height = 32 };
+            var caption = SteamTheme.Label(title, 9, SteamTheme.Muted);
+            caption.AutoSize = false; caption.Dock = DockStyle.Fill; caption.AutoEllipsis = true; caption.TextAlign = ContentAlignment.MiddleLeft;
+            _Unit.Dock = DockStyle.Right; _Unit.Width = 90;
+            row.Controls.Add(caption); row.Controls.Add(_Unit);
+            _Min.AccessibleName = "Délai minimum";
+            _Max.AccessibleName = "Délai maximum";
             _Label = SteamTheme.Label("", 10, SteamTheme.Accent); _Label.Dock = DockStyle.Top;
             Controls.Add(_Max); Controls.Add(_Min); Controls.Add(_Label); Controls.Add(row);
             _Unit.SelectedIndexChanged += (_, _) =>

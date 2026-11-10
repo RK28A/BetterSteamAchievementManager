@@ -57,13 +57,23 @@ namespace SAM.Picker
             var body = new SplitContainer { Dock = DockStyle.Fill, Size = new Size(840, 450), FixedPanel = FixedPanel.Panel2, SplitterWidth = 2, BackColor = SteamTheme.Background };
             body.SplitterDistance = 560; body.Panel1MinSize = 260; body.Panel2MinSize = 250;
             _OrderRows = new OrderRows(); body.Panel1.Controls.Add(_OrderRows);
-            var settings = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
+            var settings = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
             _OrderGameName = SteamTheme.Label("Sélectionnez un jeu du panier", 11, SteamTheme.Accent); _OrderGameName.Dock = DockStyle.Top; _OrderGameName.MaximumSize = new Size(250, 60);
             _SuccessRange = new RangeEditor("Entre les succès");
             _BetweenGames = new CheckBox { Text = "Pause entre les jeux", Dock = DockStyle.Top, Height = 36, ForeColor = SteamTheme.Text };
             _GameRange = new RangeEditor("Entre les jeux");
             var hint = SteamTheme.Label("Chaque jeu conserve ses délais.\nLa pause entre jeux s’ajoute au délai\ndu prochain succès.\n\nUn envoi à la fois, avec\nconfirmation de Steam.", 9, SteamTheme.Muted); hint.Dock = DockStyle.Top;
-            settings.Controls.Add(hint); settings.Controls.Add(_GameRange); settings.Controls.Add(_BetweenGames); settings.Controls.Add(_SuccessRange); settings.Controls.Add(_OrderGameName);
+            _OrderGameName.AutoSize = false; _OrderGameName.Height = 44;
+            hint.AutoSize = false; hint.Height = 120;
+            settings.Controls.Add(_OrderGameName); settings.Controls.Add(_SuccessRange); settings.Controls.Add(_BetweenGames); settings.Controls.Add(_GameRange); settings.Controls.Add(hint);
+            void FitSettings()
+            {
+                int width = Math.Max(160, settings.ClientSize.Width - settings.Padding.Horizontal - 2);
+                foreach (Control child in settings.Controls) { child.Dock = DockStyle.None; child.Margin = Padding.Empty; if (child.Width != width) child.Width = width; }
+            }
+            settings.SizeChanged += (_, _) => FitSettings();
+            settings.Layout += (_, _) => FitSettings();
+            FitSettings();
             body.Panel2.Controls.Add(settings);
             _OrderActions = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(10, 4, 10, 4), WrapContents = true };
             void Action(string text, Action click)
