@@ -18,6 +18,7 @@ jobs:
       - name: Build Windows x86 application and offline tests
         run: dotnet build SAM.Tests/SAM.Tests.csproj --configuration Release -p:Platform=x86
       - name: Run offline Windows UI and hosting regression tests
+        timeout-minutes: 5
         shell: pwsh
         run: |
           & ./SAM.Tests/bin/x86/Release/net48/SAM.Tests.exe

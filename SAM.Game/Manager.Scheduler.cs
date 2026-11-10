@@ -109,7 +109,7 @@ namespace SAM.Game
 
         private void StartQueue(object sender, EventArgs e)
         {
-            if (this._Demo || this._ManualSaving || this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
+            if (this._StatsGateway == null || this._ManualSaving || this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
             if (this.HasPendingChanges) { MessageBox.Show(this, "Enregistrez ou annulez les modifications manuelles avant de démarrer la file."); return; }
             if (this._MinimumMinutes.Value > this._MaximumMinutes.Value)
             {
@@ -156,17 +156,17 @@ namespace SAM.Game
             this._QueueStatus.Text = $"{this._QueueCompleted}/{this._QueueTotal} — Prochain : {this._PendingAchievements.Peek().Name} — {Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds))} s";
             if (remaining > TimeSpan.Zero) return;
             var next = this._PendingAchievements.Dequeue();
-            if (!this._SteamClient.SteamUserStats.GetAchievementAndUnlockTime(next.Id, out bool achieved, out _))
+            if (!this._StatsGateway.ReadAchievement(next.Id, out bool achieved))
             { this.StopQueue("Impossible de lire le succès : " + next.Id); return; }
             if (achieved) { this.AdvanceQueue("Déjà débloqué : " + next.Name); return; }
-            if (!this._SteamClient.SteamUserStats.SetAchievement(next.Id, true))
+            if (!this._StatsGateway.SetAchievement(next.Id, true))
             { this.StopQueue("Échec du déblocage : " + next.Id); return; }
             this._SavingAchievement = next;
             this._QueueClock.Restart();
             this._QueueStatus.Text = "Confirmation Steam : " + next.Name;
-            if (!this._SteamClient.SteamUserStats.StoreStats())
+            if (!this._StatsGateway.Store())
             {
-                this._SteamClient.SteamUserStats.SetAchievement(next.Id, false);
+                this._StatsGateway.SetAchievement(next.Id, false);
                 this._SavingAchievement = null;
                 this.StopQueue("Steam a refusé l’enregistrement : " + next.Id);
             }

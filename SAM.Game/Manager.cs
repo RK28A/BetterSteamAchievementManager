@@ -38,6 +38,7 @@ namespace SAM.Game
     {
         private readonly long _GameId;
         private readonly API.Client _SteamClient;
+        private readonly IStatsGateway _StatsGateway;
 
         private readonly WebClient _IconDownloader = new();
 
@@ -52,7 +53,7 @@ namespace SAM.Game
 
         //private API.Callback<APITypes.UserStatsStored> UserStatsStoredCallback;
 
-        public Manager(long gameId, API.Client client, bool demo = false)
+        public Manager(long gameId, API.Client client, bool demo = false, IStatsGateway statsGateway = null)
         {
             this._Demo = demo;
             this.InitializeComponent();
@@ -86,6 +87,7 @@ namespace SAM.Game
 
             this._GameId = gameId;
             this._SteamClient = client;
+            this._StatsGateway = statsGateway ?? (demo ? null : new SteamStatsGateway(client.SteamUserStats));
 
             this._IconDownloader.DownloadDataCompleted += this.OnIconDownload;
 
@@ -375,7 +377,8 @@ namespace SAM.Game
 
         private void OnUserStatsReceived(APITypes.UserStatsReceived param)
         {
-            if (param.GameId != (ulong)this._GameId) return;
+            if (param.GameId != (ulong)this._GameId || !this._AwaitingStats) return;
+            this._AwaitingStats = false;
             if (param.Result != 1)
             {
                 this._GameStatusLabel.Text = $"Error while retrieving stats: {TranslateError(param.Result)}";
@@ -437,9 +440,11 @@ namespace SAM.Game
 
             // This still triggers the UserStatsReceived callback, in addition to the callresult.
             // No need to implement callresults for the time being.
+            this._AwaitingStats = true;
             var callHandle = this._SteamClient.SteamUserStats.RequestUserStats(steamId);
             if (callHandle == API.CallHandle.Invalid)
             {
+                this._AwaitingStats = false;
                 this._GameStatusLabel.Text = "Impossible de demander les statistiques Steam.";
                 this._ReloadButton.Enabled = true;
                 return;
@@ -617,7 +622,7 @@ namespace SAM.Game
 
             foreach (var info in achievements)
             {
-                if (this._SteamClient.SteamUserStats.SetAchievement(info.Id, info.Item.Checked) == false)
+                if (this._StatsGateway.SetAchievement(info.Id, info.Item.Checked) == false)
                 {
                     MessageBox.Show(
                         this,
@@ -744,7 +749,7 @@ namespace SAM.Game
 
         private bool Store()
         {
-            if (this._SteamClient.SteamUserStats.StoreStats() == false)
+            if (this._StatsGateway.Store() == false)
             {
                 MessageBox.Show(
                     this,
