@@ -52,6 +52,14 @@ internal static class OrderTests
         Directory.CreateDirectory(root);
         try
         {
+            var selectionStore = new JsonStore<OrderCart>(Path.Combine(root, "selection.json"));
+            using (var selection = new Manager(620, null, true, cartPath: selectionStore.Path))
+            {
+                selection._Cards.SelectVisible("all"); selection.AddSelectionToCart();
+                check(selectionStore.Read().Count == 4, "cart selection excludes achieved and protected cards");
+                selection.AddSelectionToCart();
+                check(selectionStore.Read().Count == 4, "repeated add-to-cart never duplicates selected cards");
+            }
             var store = new JsonStore<OrderCart>(Path.Combine(root, "cart.json"));
             check(OrderPaths.Add(store, Group(620, "A", "B")) == 2, "cart adds selected achievements");
             check(OrderPaths.Add(store, Group(620, "A")) == 0 && store.Read().Count == 2, "cart de-duplicates game and achievement pairs");
