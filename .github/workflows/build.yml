@@ -1,6 +1,8 @@
 name: Windows build
 on:
   push:
+    branches: ['**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -13,13 +15,67 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Build Windows x86 applications
-        run: dotnet build SAM.sln --configuration Release -p:Platform=x86
+      - name: Build Windows x86 application and offline tests
+        run: dotnet build SAM.Tests/SAM.Tests.csproj --configuration Release -p:Platform=x86
+      - name: Run offline Windows UI and hosting regression tests
+        shell: pwsh
+        run: |
+          & ./SAM.Tests/bin/x86/Release/net48/SAM.Tests.exe
+          if ($LASTEXITCODE -ne 0) { throw "Windows regression tests failed" }
       - name: Include license and documentation
         shell: pwsh
         run: Copy-Item LICENSE.txt, README.md upload/
+      - name: Build single EXE distributor
+        run: dotnet build SAM.Launcher/SAM.Launcher.csproj --configuration Release -p:Platform=x86
+      - name: Verify single EXE extraction
+        shell: pwsh
+        run: |
+          $app = Start-Process ./dist/BetterSteamAchievementManager.exe -ArgumentList '--extract-only' -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw "Single EXE extraction failed" }
+          $cache = Get-ChildItem "$env:LOCALAPPDATA/BetterSteamAchievementManager" -Directory -Filter 'app-*' | Select-Object -First 1
+          foreach ($name in @('SAM.Picker.exe', 'SAM.Game.exe', 'SAM.API.dll', 'System.Resources.Extensions.dll', 'LICENSE.txt')) {
+            if (-not (Test-Path (Join-Path $cache.FullName $name))) { throw "Missing payload file: $name" }
+          }
+          'corrupted' | Set-Content (Join-Path $cache.FullName 'SAM.Picker.exe')
+          $app = Start-Process ./dist/BetterSteamAchievementManager.exe -ArgumentList '--extract-only' -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw "Cache repair failed" }
+          if ((Get-FileHash ./upload/SAM.Picker.exe).Hash -ne (Get-FileHash (Join-Path $cache.FullName 'SAM.Picker.exe')).Hash) { throw "Cache was not repaired" }
+      - name: Create portable ZIP and checksums
+        shell: pwsh
+        run: |
+          Compress-Archive -Path upload/*.exe, upload/*.dll, upload/*.config, upload/LICENSE.txt, upload/README.md -DestinationPath dist/BetterSteamAchievementManager-Windows-x86.zip
+          Get-ChildItem dist -File | Where-Object Extension -in '.exe', '.zip' | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content dist/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-UI-test-results
+          path: test-results/
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: BetterSteamAchievementManager-Windows-x86
-          path: upload/
+          path: |
+            dist/BetterSteamAchievementManager.exe
+            dist/BetterSteamAchievementManager-Windows-x86.zip
+            dist/SHA256SUMS.txt
           if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BetterSteamAchievementManager-Windows-x86
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/BetterSteamAchievementManager.exe dist/BetterSteamAchievementManager-Windows-x86.zip dist/SHA256SUMS.txt --title "BetterSteamAchievementManager $RELEASE_TAG" --generate-notes --verify-tag

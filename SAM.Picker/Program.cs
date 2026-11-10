@@ -28,8 +28,15 @@ namespace SAM.Picker
     internal static class Program
     {
         [STAThread]
-        private static void Main()
+        private static void Main(string[] args)
         {
+            if (Array.IndexOf(args, "--demo") >= 0)
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new GamePicker(null, true));
+                return;
+            }
             if (API.Steam.GetInstallPath() == Application.StartupPath)
             {
                 MessageBox.Show(

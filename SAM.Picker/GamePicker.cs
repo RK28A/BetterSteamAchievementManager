@@ -51,8 +51,9 @@ namespace SAM.Picker
 
         private readonly API.Callbacks.AppDataChanged _AppDataChangedCallback;
 
-        public GamePicker(API.Client client)
+        public GamePicker(API.Client client, bool demo = false)
         {
+            this._Demo = demo;
             this._Games = new();
             this._FilteredGames = new();
             this._LogoLock = new();
@@ -72,6 +73,8 @@ namespace SAM.Picker
 
             this._SteamClient = client;
 
+            this.FormClosing += this.OnLibraryClosing;
+            if (demo) { this._CallbackTimer.Stop(); this.LoadDemoLibrary(); return; }
             this._AppDataChangedCallback = client.CreateAndRegisterCallback<API.Callbacks.AppDataChanged>();
             this._AppDataChangedCallback.OnRun += this.OnAppDataChanged;
 
@@ -91,6 +94,7 @@ namespace SAM.Picker
             }
 
             game.Name = this._SteamClient.SteamApps001.GetAppData(game.Id, "name");
+            this._GameListView.Invalidate();
 
             this.AddGameToLogoQueue(game);
             this.DownloadNextLogo();
@@ -98,7 +102,7 @@ namespace SAM.Picker
 
         private void DoDownloadList(object sender, DoWorkEventArgs e)
         {
-            this._PickerStatusLabel.Text = "Downloading game list...";
+
 
             byte[] bytes;
             using (WebClient downloader = new())
@@ -123,19 +127,21 @@ namespace SAM.Picker
                 }
             }
 
-            this._PickerStatusLabel.Text = "Checking game ownership...";
-            foreach (var kv in pairs)
-            {
-                this.AddGame(kv.Key, kv.Value);
-            }
+            e.Result = pairs;
         }
 
         private void OnDownloadList(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (e.Error != null || e.Cancelled == true)
+            if (IsDisposed || _ClosingLibrary) return;
+            if (e.Error != null || e.Cancelled)
             {
                 this.AddDefaultGames();
-                MessageBox.Show(e.Error.ToString(), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this._PickerStatusLabel.Text = "Liste en ligne indisponible. Ajoutez un jeu avec son App ID.";
+            }
+            else if (e.Result is List<KeyValuePair<uint, string>> pairs)
+            {
+                this.CheckCatalogInBatches(pairs);
+                return;
             }
 
             this.RefreshGames();
@@ -179,15 +185,15 @@ namespace SAM.Picker
                 this._FilteredGames.Add(info);
             }
 
+            this._GameListView.SelectedIndices.Clear();
             this._GameListView.VirtualListSize = this._FilteredGames.Count;
+            this._GameListView.Invalidate();
+            this._LibraryCount.Text = "JEUX  (" + this._FilteredGames.Count + ")";
             this._PickerStatusLabel.Text =
-                $"Displaying {this._GameListView.Items.Count} games. Total {this._Games.Count} games.";
+                $"{this._FilteredGames.Count} jeux affichés · {this._Games.Count} jeux dans la bibliothèque";
 
-            if (this._GameListView.Items.Count > 0)
-            {
-                this._GameListView.Items[0].Selected = true;
-                this._GameListView.Select();
-            }
+            int active = this._FilteredGames.FindIndex(g => g.Id == this._ActiveGameId);
+            if (active >= 0) this._GameListView.SelectedIndices.Add(active);
         }
 
         private void OnGameListViewRetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
@@ -253,7 +259,7 @@ namespace SAM.Picker
         {
             var info = (GameInfo)e.Argument;
 
-            this._LogosAttempted.Add(info.ImageUrl);
+
 
             using (WebClient downloader = new())
             {
@@ -262,7 +268,8 @@ namespace SAM.Picker
                     var data = downloader.DownloadData(new Uri(info.ImageUrl));
                     using (MemoryStream stream = new(data, false))
                     {
-                        Bitmap bitmap = new(stream);
+                        using var decoded = new Bitmap(stream);
+                        Bitmap bitmap = new(decoded);
                         e.Result = new LogoInfo(info.Id, bitmap);
                     }
                 }
@@ -275,11 +282,7 @@ namespace SAM.Picker
 
         private void OnDownloadLogo(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (e.Error != null || e.Cancelled == true)
-            {
-                return;
-            }
-
+            if (IsDisposed || _ClosingLibrary || e.Error != null || e.Cancelled) return;
             if (e.Result is LogoInfo logoInfo &&
                 logoInfo.Bitmap != null &&
                 this._Games.TryGetValue(logoInfo.Id, out var gameInfo) == true)
@@ -289,6 +292,8 @@ namespace SAM.Picker
                 this._LogoImageList.Images.Add(gameInfo.ImageUrl, logoInfo.Bitmap);
                 gameInfo.ImageIndex = imageIndex;
                 this._GameListView.EndUpdate();
+                this._GameListView.Invalidate();
+                logoInfo.Bitmap.Dispose();
             }
 
             this.DownloadNextLogo();
@@ -331,6 +336,7 @@ namespace SAM.Picker
                 this._DownloadStatusLabel.Text = $"Downloading {1 + this._LogoQueue.Count} game icons...";
                 this._DownloadStatusLabel.Visible = true;
 
+                this._LogosAttempted.Add(info.ImageUrl);
                 this._LogoWorker.RunWorkerAsync(info);
             }
         }
@@ -418,7 +424,7 @@ namespace SAM.Picker
 
         private void AddGames()
         {
-            this._Games.Clear();
+            if (this._ListWorker.IsBusy || this._CatalogLoading || this._Demo) return;
             this._RefreshGamesButton.Enabled = false;
             this._ListWorker.RunWorkerAsync();
         }
@@ -450,19 +456,7 @@ namespace SAM.Picker
                 return;
             }
 
-            try
-            {
-                Process.Start("SAM.Game.exe", info.Id.ToString(CultureInfo.InvariantCulture));
-            }
-            catch (Win32Exception)
-            {
-                MessageBox.Show(
-                    this,
-                    "Failed to start SAM.Game.exe.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
+            this.OpenGame(index);
         }
 
         private void OnRefresh(object sender, EventArgs e)
@@ -499,7 +493,6 @@ namespace SAM.Picker
             }
 
             this._AddGameTextBox.Text = "";
-            this._Games.Clear();
             this.AddGame(id, "normal");
             this._FilterGamesMenuItem.Checked = true;
             this.RefreshGames();
@@ -511,12 +504,22 @@ namespace SAM.Picker
             this.RefreshGames();
 
             // Compatibility with _GameListView SearchForVirtualItemEventHandler (otherwise _SearchGameTextBox loose focus on KeyUp)
-            this._SearchGameTextBox.Focus();
+            if (sender == this._SearchGameTextBox) this._SearchGameTextBox.Focus();
         }
 
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
         {
-            e.DrawDefault = true;
+            e.DrawDefault = false;
+            bool selected = e.Item.Selected;
+            using (var brush = new SolidBrush(selected ? SAM.UI.SteamTheme.Surface : SAM.UI.SteamTheme.Sidebar))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            var game = this._FilteredGames[e.ItemIndex];
+            if (game.ImageIndex >= 0 && game.ImageIndex < this._LogoImageList.Images.Count)
+                e.Graphics.DrawImage(this._LogoImageList.Images[game.ImageIndex], e.Bounds.Left + 10, e.Bounds.Top + 4, 40, 24);
+            var textRect = new Rectangle(e.Bounds.Left + 60, e.Bounds.Top, Math.Max(0, e.Bounds.Width - 68), e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, game.Name, this.Font, textRect, selected ? SAM.UI.SteamTheme.Accent : SAM.UI.SteamTheme.Text,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            if (this._Demo) return;
 
             if (e.Item.Bounds.IntersectsWith(this._GameListView.ClientRectangle) == false)
             {
