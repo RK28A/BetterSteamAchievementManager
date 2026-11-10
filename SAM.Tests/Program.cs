@@ -231,6 +231,12 @@ internal static class Program
                 library.Show(); library.Bounds = Screen.PrimaryScreen.WorkingArea; Pump(200);
                 Check(library.FormBorderStyle == FormBorderStyle.None, "library has no native white window border");
                 Check(library.Controls.Cast<Control>().Any(c => c.AccessibleName == "Barre de fenêtre"), "library supplies dark caption with window actions");
+                var chrome = library.Controls.Cast<Control>().First(c => c.AccessibleName == "Barre de fenêtre");
+                var maximize = chrome.Controls.OfType<Button>().First(b => b.AccessibleName == "Agrandir ou restaurer");
+                maximize.PerformClick();
+                Check(library.WindowState == FormWindowState.Maximized, "custom caption maximizes the library");
+                maximize.PerformClick();
+                Check(library.WindowState == FormWindowState.Normal, "custom caption restores the library");
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 3, "library renders games without Steam");
                 Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = "Portal";
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 2, "library search filters games");
@@ -282,7 +288,8 @@ internal static class Program
                     }
                     Pump(100);
                 }
-                library.Close();
+                chrome.Controls.OfType<Button>().First(b => b.AccessibleName == "Fermer").PerformClick();
+                Check(library.IsDisposed, "custom close button closes the library after child cleanup");
             }
             Console.WriteLine($"{_Assertions} assertions passed.");
             return 0;
