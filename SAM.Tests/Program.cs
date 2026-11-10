@@ -13,6 +13,29 @@ using SAM.Game;
 internal static class Program
 {
     private static int _Assertions;
+    private sealed class FakeStats : IStatsGateway
+    {
+        internal int Sets, Stores;
+        internal bool ReadOk = true, SetOk = true, StoreOk = true;
+        public bool ReadAchievement(string id, out bool achieved) { achieved = false; return ReadOk; }
+        public bool SetAchievement(string id, bool achieved) { Sets++; return SetOk; }
+        public bool Store() { Stores++; return StoreOk; }
+    }
+    private static void SetField(object obj, string name, object value) => obj.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(obj, value);
+    private static void Due(Manager manager)
+    {
+        SetField(manager, "_QueueDelay", TimeSpan.Zero);
+        Invoke(manager, "TickQueue", null, EventArgs.Empty);
+    }
+    private static Manager Queued(FakeStats stats)
+    {
+        var manager = new Manager(620, null, true, stats);
+        var choices = Field<CheckedListBox>(manager, "_QueueChoices");
+        choices.SetItemChecked(0, true);
+        choices.SetItemChecked(1, true);
+        Invoke(manager, "StartQueue", null, EventArgs.Empty);
+        return manager;
+    }
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr parent, uint command);
     [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr child);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect rect);
@@ -90,6 +113,48 @@ internal static class Program
                 Field<TabControl>(manager, "_MainTabControl").SelectedIndex = 2; Pump(100);
                 Capture(manager, "test-results/timing.png");
                 manager.Close();
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                var stats = (FakeStats)Field<IStatsGateway>(queue, "_StatsGateway");
+                Invoke(queue, "TickQueue", null, EventArgs.Empty);
+                Check(stats.Sets == 0, "first achievement waits for its delay");
+                Due(queue);
+                Check(stats.Sets == 1 && stats.Stores == 1, "deadline sends exactly one achievement");
+                Due(queue);
+                Check(stats.Sets == 1, "no second send before Steam confirms");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 400, Result = 1 });
+                Check(Field<SAM.Game.Stats.AchievementDefinition>(queue, "_SavingAchievement") != null, "confirmation for another game is ignored");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 1 });
+                Invoke(queue, "TickQueue", null, EventArgs.Empty);
+                Check(stats.Sets == 1, "next achievement receives a new full delay");
+                Invoke(queue, "StopQueue", "Test");
+                Due(queue);
+                Check(stats.Sets == 1 && !Field<bool>(queue, "_QueueRunning"), "stopping while waiting prevents the next write");
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                Due(queue);
+                Invoke(queue, "StopQueue", "Test");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 1 });
+                Due(queue);
+                Check(((FakeStats)Field<IStatsGateway>(queue, "_StatsGateway")).Sets == 1, "stopping during confirmation never advances the queue");
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                Due(queue);
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 2 });
+                Due(queue);
+                Check(((FakeStats)Field<IStatsGateway>(queue, "_StatsGateway")).Sets == 1 && !Field<bool>(queue, "_QueueRunning"), "Steam rejection halts the queue");
+            }
+            foreach (string failure in new[] { "read", "set", "store" })
+            {
+                var stats = new FakeStats { ReadOk = failure != "read", SetOk = failure != "set", StoreOk = failure != "store" };
+                using var queue = Queued(stats);
+                Due(queue);
+                int count = stats.Sets;
+                Due(queue);
+                Check(!Field<bool>(queue, "_QueueRunning") && stats.Sets == count, failure + " failure prevents later sends");
             }
             // Verify the real cross-process hosting path using an offline child view.
             using (var host = new Form { ClientSize = new Size(960, 720) })

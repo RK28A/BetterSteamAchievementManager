@@ -14,7 +14,7 @@ namespace SAM.Game
         private Label _GameHeading, _ProgressText, _SelectionText, _EmptyAchievements;
         private ProgressBar _GameProgress;
         private FlowLayoutPanel _SelectionActions;
-        private bool _StatsReady, _ManualSaving;
+        private bool _StatsReady, _ManualSaving, _AwaitingStats;
         private int _ManualAchievementCount, _ManualStatCount;
         private string _LastStoreMessage;
         private readonly Stopwatch _ManualClock = new();
@@ -60,6 +60,12 @@ namespace SAM.Game
             Action("Annuler les modifications", (_, _) =>
             {
                 foreach (ListViewItem item in _AchievementListView.Items) if (item.Tag is Stats.AchievementInfo info) item.Checked = info.IsAchieved;
+                foreach (var stat in _Statistics)
+                {
+                    if (stat is Stats.IntStatInfo integer) integer.IntValue = integer.OriginalValue;
+                    if (stat is Stats.FloatStatInfo floating) floating.FloatValue = floating.OriginalValue;
+                }
+                _Statistics.ResetBindings();
                 _Cards.Invalidate(); UpdateSelectionSummary();
             });
             _SelectionText = SteamTheme.Label("Aucun succès sélectionné", 9, SteamTheme.Muted);
@@ -98,7 +104,7 @@ namespace SAM.Game
             Controls.Add(hero);
             _MainTabControl.BringToFront();
             SteamTheme.Apply(this);
-            foreach (Control child in hero.Controls) child.BackColor = Color.Transparent;
+            foreach (Control child in hero.Controls) if (child is Label) child.BackColor = Color.Transparent;
             _QueueStatus.MaximumSize = new Size(850, 0);
             _CallbackTimer.Enabled = !_Demo;
             FormClosed += (_, _) => { _IconDownloader.CancelAsync(); _IconDownloader.Dispose(); _AchievementListView.Dispose(); };
