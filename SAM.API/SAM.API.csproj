@@ -14,7 +14,7 @@
     <ApplicationIcon>Pink.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/gibbed/SteamAchievementManager/</RepositoryUrl>
+    <RepositoryUrl>https://github.com/RK28A/BetterSteamAchievementManager/</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
   </PropertyGroup>
   <PropertyGroup>

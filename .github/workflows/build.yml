@@ -1,0 +1,25 @@
+name: Windows build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build Windows x86 applications
+        run: dotnet build SAM.sln --configuration Release -p:Platform=x86
+      - name: Include license and documentation
+        shell: pwsh
+        run: Copy-Item LICENSE.txt, README.md upload/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterSteamAchievementManager-Windows-x86
+          path: upload/
+          if-no-files-found: error

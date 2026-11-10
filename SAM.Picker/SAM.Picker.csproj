@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyTitle>Steam Achievement Manager Picker</AssemblyTitle>
+    <AssemblyTitle>BetterSteamAchievementManager Picker</AssemblyTitle>
     <Company>Gibbed</Company>
     <Authors>Gibbed</Authors>
     <Description>A game picker for the Steam Achievement Manager.</Description>
@@ -16,7 +16,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/gibbed/SteamAchievementManager/</RepositoryUrl>
+    <RepositoryUrl>https://github.com/RK28A/BetterSteamAchievementManager/</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
   </PropertyGroup>
   <PropertyGroup>
