@@ -52,9 +52,12 @@ namespace SAM.Picker
 
         private readonly API.Callbacks.AppDataChanged _AppDataChangedCallback;
 
-        public GamePicker(API.Client client, bool demo = false)
+        private readonly string _DemoStorage;
+
+        public GamePicker(API.Client client, bool demo = false, string demoStorage = null)
         {
             this._Demo = demo;
+            this._DemoStorage = demo ? demoStorage : null;
             this._Games = new();
             this._FilteredGames = new();
             this._LogoLock = new();

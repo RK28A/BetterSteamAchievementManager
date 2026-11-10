@@ -82,9 +82,9 @@ namespace SAM.Picker
             options.Controls.Add(SteamTheme.Label("20 jeux maximum · décimales acceptées (ex. 1,5 h)", 9, SteamTheme.Muted));
             var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, WrapContents = true };
             var start = new Button { Text = "Démarrer la sélection", AutoSize = true, Tag = "primary" }; start.Click += (_, _) => StartGameTime();
-            var stop = new Button { Text = "Arrêter la session", AutoSize = true }; stop.Click += (_, _) => { if (_TimeRuns.SelectedItem is TimeJob job) StopGameTime(job); };
-            var resume = new Button { Text = "Reprendre", AutoSize = true }; resume.Click += (_, _) => { if (_TimeRuns.SelectedItem is TimeJob job && !job.Plan.Order && job.Plan.ElapsedSeconds < job.Plan.GoalSeconds) { job.Plan.Resume = true; job.RetryUtc = DateTime.MinValue; SaveBackground(); } };
-            var stopAll = new Button { Text = "Tout arrêter", AutoSize = true }; stopAll.Click += (_, _) => StopAllGameTime();
+            var stop = new Button { Text = "Arrêter la session", AutoSize = true }; stop.Click += (_, _) => ParallelAction(() => { if (_TimeRuns.SelectedItem is TimeJob job) StopGameTime(job); });
+            var resume = new Button { Text = "Reprendre", AutoSize = true }; resume.Click += (_, _) => ParallelAction(() => { if (_TimeRuns.SelectedItem is TimeJob job && !job.Plan.Order && job.Plan.ElapsedSeconds < job.Plan.GoalSeconds) { if (_TimeJobs.Values.Count(j => j.Plan.Resume || j.Running) >= 20) throw new InvalidOperationException("20 sessions maximum."); job.Plan.Resume = true; job.RetryUtc = DateTime.MinValue; SaveBackground(); } });
+            var stopAll = new Button { Text = "Tout arrêter", AutoSize = true }; stopAll.Click += (_, _) => ParallelAction(StopAllGameTime);
             actions.Controls.Add(start); actions.Controls.Add(stop); actions.Controls.Add(stopAll); actions.Controls.Add(resume);
             split.Panel2.Controls.Add(_TimeRuns); split.Panel2.Controls.Add(actions); split.Panel2.Controls.Add(options);
             _TimeSummary = SteamTheme.Label("Aucune session active", 10, SteamTheme.Accent); _TimeSummary.Dock = DockStyle.Bottom;
@@ -163,6 +163,7 @@ namespace SAM.Picker
                 if (max < min) throw new InvalidOperationException("Le maximum doit dépasser le minimum.");
                 var requested = _TimeSelection.Where(id => _Games.ContainsKey(id) && (!_TimeJobs.TryGetValue(id, out var job) || (!job.Running && !job.Plan.Resume))).ToArray();
                 if (requested.Length + _TimeJobs.Values.Count(j => j.Running || j.Plan.Resume) > BackgroundPlanning.SessionLimit) throw new InvalidOperationException("20 sessions maximum, y compris Achievement Order.");
+                if (requested.Length == 0) return;
                 foreach (uint id in requested) AddTimeJob(_Games[id], (min + (max - min) * _TimeRandomSource.NextDouble()) * 3600, false);
                 EnableBackgroundRecovery(); TickGameTime();
             }
