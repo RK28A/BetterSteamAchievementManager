@@ -71,7 +71,7 @@ namespace SAM.Game
                 this._QueueStoredCallback = this._SteamClient.CreateAndRegisterCallback<API.Callbacks.UserStatsStored>();
                 this._QueueStoredCallback.OnRun += this.OnQueueStored;
             }
-            this.FormClosing += (_, _) => { this._QueueTimer.Stop(); this._QueueRunning = false; };
+            this.FormClosed += (_, _) => { this._QueueTimer.Stop(); this._QueueRunning = false; };
         }
 
         private void CheckQueueChoices(bool value)
