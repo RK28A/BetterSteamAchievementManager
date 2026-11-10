@@ -236,7 +236,7 @@ namespace SAM.Picker
             if (e.StartIndex >= count)
             {
                 // starting from the last item in the list
-                index = this._FilteredGames.FindIndex(0, startIndex - 1, predicate);
+                index = this._FilteredGames.FindIndex(0, count, predicate);
             }
             else if (startIndex <= 0)
             {
@@ -484,12 +484,6 @@ namespace SAM.Picker
             {
                 MessageBox.Show(this, "You don't own that game.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
-            }
-
-            while (this._LogoQueue.TryDequeue(out var logo) == true)
-            {
-                // clear the download queue because we will be showing only one app
-                this._LogosAttempted.Remove(logo.ImageUrl);
             }
 
             this._AddGameTextBox.Text = "";
