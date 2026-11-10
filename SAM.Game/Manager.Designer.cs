@@ -42,7 +42,7 @@
             this._GameStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this._DownloadStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this._CallbackTimer = new System.Windows.Forms.Timer(this.components);
-            this._MainTabControl = new System.Windows.Forms.TabControl();
+            this._MainTabControl = new SAM.UI.SteamTabs();
             this._AchievementsTabPage = new System.Windows.Forms.TabPage();
             this._AchievementListView = new SAM.Game.DoubleBufferedListView();
             this._AchievementNameColumnHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));

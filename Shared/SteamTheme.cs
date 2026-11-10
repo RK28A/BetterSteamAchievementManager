@@ -51,7 +51,7 @@ namespace SAM.UI
                     if (item is ToolStripDropDownItem menu) Apply(menu.DropDown);
                 }
             }
-            if (root is TabControl tabs)
+            if (root is TabControl tabs && root is not SteamTabs)
             {
                 tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
                 tabs.ItemSize = new Size(160, 36);
@@ -117,6 +117,34 @@ namespace SAM.UI
             if (Width <= 0 || Height <= 0) return;
             using var fill = new LinearGradientBrush(ClientRectangle, Color.FromArgb(40, 69, 89), SteamTheme.Background, 15F);
             e.Graphics.FillRectangle(fill, ClientRectangle);
+        }
+    }
+}
+
+namespace SAM.UI
+{
+    // Pages fill the client area; the library supplies its own dark navigation bar.
+    internal sealed class SteamTabs : System.Windows.Forms.TabControl
+    {
+        public override System.Drawing.Rectangle DisplayRectangle => new(0, 0, Width, Height);
+        protected override void WndProc(ref System.Windows.Forms.Message m)
+        {
+            if (m.Msg == 0x1328) { m.Result = System.IntPtr.Zero; return; }
+            base.WndProc(ref m);
+        }
+    }
+    internal sealed class SteamProgress : System.Windows.Forms.Control
+    {
+        private int _Value;
+        public int Maximum { get; set; } = 1000;
+        public int Value { get => _Value; set { _Value = System.Math.Max(0, System.Math.Min(Maximum, value)); Invalidate(); } }
+        public SteamProgress() { DoubleBuffered = true; }
+        protected override void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        {
+            e.Graphics.Clear(SteamTheme.Surface);
+            if (Maximum <= 0) return;
+            using var fill = new System.Drawing.SolidBrush(SteamTheme.Accent);
+            e.Graphics.FillRectangle(fill, 0, 0, Width * Value / Maximum, Height);
         }
     }
 }

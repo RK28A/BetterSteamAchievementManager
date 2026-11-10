@@ -12,7 +12,7 @@ namespace SAM.Game
     {
         internal AchievementCards _Cards;
         private Label _GameHeading, _ProgressText, _SelectionText, _EmptyAchievements;
-        private ProgressBar _GameProgress;
+        private SteamProgress _GameProgress;
         private FlowLayoutPanel _SelectionActions;
         private bool _StatsReady, _ManualSaving, _AwaitingStats;
         private int _ManualAchievementCount, _ManualStatCount;
@@ -52,15 +52,15 @@ namespace SAM.Game
             Action("Tout désélectionner", (_, _) => { _Cards.SelectedIds.Clear(); _Cards.NotifySelection(); });
             Action("Inverser", (_, _) => _Cards.SelectVisible("invert"));
             Action("Non débloqués", (_, _) => _Cards.SelectVisible("locked"));
-            Action("Débloquer la sélection", (_, _) => StageSelected(true));
-            Action("Verrouiller la sélection", (_, _) => StageSelected(false));
+            Action("Débloquer", (_, _) => StageSelected(true));
+            Action("Verrouiller", (_, _) => StageSelected(false));
             Action("Déblocage progressif", (_, _) =>
             {
                 for (int i = 0; i < _QueueChoices.Items.Count; i++)
                     _QueueChoices.SetItemChecked(i, _Cards.SelectedIds.Contains(((Stats.AchievementDefinition)_QueueChoices.Items[i]).Id));
                 _MainTabControl.SelectedIndex = 2;
             });
-            Action("Annuler les modifications", (_, _) =>
+            Action("Annuler", (_, _) =>
             {
                 foreach (ListViewItem item in _AchievementListView.Items) if (item.Tag is Stats.AchievementInfo info) item.Checked = info.IsAchieved;
                 foreach (var stat in _Statistics)
@@ -92,22 +92,43 @@ namespace SAM.Game
             _EnableStatsEditingCheckBox.Dock = DockStyle.Bottom;
             _EnableStatsEditingCheckBox.Text = "Activer l’édition des statistiques (modifications avancées)";
             _StatisticsDataGridView.BringToFront();
-            var hero = new HeroPanel { Dock = DockStyle.Top, Height = 155, Padding = new Padding(24, 12, 24, 12) };
+            var hero = new HeroPanel { Dock = DockStyle.Top, Height = 128, Padding = new Padding(24, 12, 24, 12) };
             _GameHeading = SteamTheme.Label(name, 23);
             _GameHeading.Dock = DockStyle.Top;
             _ProgressText = SteamTheme.Label("Récupération de votre progression", 11, SteamTheme.Muted);
             _ProgressText.Dock = DockStyle.Top;
-            _GameProgress = new ProgressBar { Dock = DockStyle.Bottom, Height = 5, Maximum = 1000, Style = ProgressBarStyle.Continuous };
+            _GameProgress = new SteamProgress { Dock = DockStyle.Bottom, Height = 5, Maximum = 1000 };
             var overline = SteamTheme.Label("PROGRESSION DES SUCCÈS", 9, SteamTheme.Accent);
             overline.Dock = DockStyle.Top;
             hero.Controls.Add(_GameProgress);
             hero.Controls.Add(_ProgressText);
             hero.Controls.Add(_GameHeading);
             hero.Controls.Add(overline);
+            var navigation = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(12, 0, 0, 0), WrapContents = false };
+            var navigationButtons = new System.Collections.Generic.List<Button>();
+            for (int index = 0; index < _MainTabControl.TabPages.Count; index++)
+            {
+                int pageIndex = index;
+                var button = new Button { Text = _MainTabControl.TabPages[index].Text, AutoSize = true, Margin = new Padding(0, 0, 6, 0), Height = 36 };
+                button.Click += (_, _) => _MainTabControl.SelectedIndex = pageIndex;
+                navigation.Controls.Add(button);
+                navigationButtons.Add(button);
+            }
+            void UpdateNavigation()
+            {
+                for (int i = 0; i < navigationButtons.Count; i++)
+                {
+                    navigationButtons[i].BackColor = i == _MainTabControl.SelectedIndex ? SteamTheme.Surface : SteamTheme.Background;
+                    navigationButtons[i].ForeColor = i == _MainTabControl.SelectedIndex ? SteamTheme.Accent : SteamTheme.Muted;
+                }
+            }
+            _MainTabControl.SelectedIndexChanged += (_, _) => UpdateNavigation();
+            Controls.Add(navigation);
             Controls.Add(hero);
             _MainTabControl.BringToFront();
             SteamTheme.Apply(this);
             foreach (Control child in hero.Controls) if (child is Label) child.BackColor = Color.Transparent;
+            UpdateNavigation();
             _QueueStatus.MaximumSize = new Size(850, 0);
             _CallbackTimer.Enabled = !_Demo;
             FormClosed += (_, _) => { _IconDownloader.CancelAsync(); _IconDownloader.Dispose(); _AchievementListView.Dispose(); };
