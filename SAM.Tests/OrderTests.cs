@@ -61,6 +61,10 @@ internal static class OrderTests
             bool frozen = false;
             try { OrderPaths.Add(store, Group(400, "B")); } catch (InvalidOperationException) { frozen = true; }
             check(frozen && store.Read().Count == 3, "cart cannot be edited while an order is running");
+            store.Update(data =>
+            {
+                foreach (string id in new[] { "DEMO_2", "DEMO_3", "DEMO_6" }) data.Games[0].Achievements.Add(new OrderAchievement { Id = id, Name = id });
+            });
             var commands = new JsonStore<OrderCommand>(Path.Combine(root, "command.json"));
             commands.Update(command => { command.Id = "one"; command.RunId = "test"; command.GameId = 620; command.AchievementId = "DEMO_2"; });
             var fake = new Fake();

@@ -55,6 +55,8 @@ namespace SAM.Game
             {
                 var cart = _CartStore.Read();
                 if (!cart.IsRunning || cart.ActiveRun != command.RunId) { FinishOrderCommand(command.Id, "failed", "La commande a été arrêtée."); return; }
+                if (!cart.Games.Any(g => g.GameId == command.GameId && g.Achievements.Any(a => a.Id == command.AchievementId)))
+                { FinishOrderCommand(command.Id, "failed", "Le succès ne fait plus partie du panier."); return; }
                 if (_AwaitingStats) return;
                 if (!_StatsReady || _QueueRunning || _ManualSaving || _SavingAchievement != null || HasPendingChanges)
                 { FinishOrderCommand(command.Id, "failed", "Ce jeu est occupé ou possède des changements non enregistrés."); return; }
