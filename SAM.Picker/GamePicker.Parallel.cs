@@ -115,8 +115,9 @@ namespace SAM.Picker
             try
             {
                 var result = await CompletionSource.Lookup(plan.GameId, plan.Name, url);
-                if (IsDisposed || _ClosingLibrary || _Background.ParallelEnabled || plan.Ready) return;
-                plan.CompletionHours = result.Hours; plan.SourceUrl = result.Url; plan.TargetHours = Math.Round(result.Hours, 2); plan.WindowEndHours = BackgroundPlanning.DefaultWindowHours(plan.TargetHours, plan.SteamHours);
+                if (IsDisposed || _ClosingLibrary || _Background.ParallelEnabled) return;
+                plan.CompletionHours = result.Hours; plan.SourceUrl = result.Url;
+                if (!plan.Ready) { plan.TargetHours = Math.Round(result.Hours, 2); plan.WindowEndHours = BackgroundPlanning.DefaultWindowHours(plan.TargetHours, plan.SteamHours); }
                 SaveBackground(); if (SelectedPlan == plan) BindParallelGame();
             }
             catch (Exception e) when (e is System.Net.Http.HttpRequestException || e is System.Threading.Tasks.TaskCanceledException || e is InvalidOperationException || e is ArgumentException || e is IOException)
