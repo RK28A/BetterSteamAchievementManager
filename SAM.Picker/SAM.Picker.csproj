@@ -7,9 +7,9 @@
     <Copyright>Copyright © Gibbed 2019</Copyright>
   </PropertyGroup>
   <PropertyGroup>
-    <Version>8.3.0</Version>
-    <AssemblyVersion>8.3.0.0</AssemblyVersion>
-    <FileVersion>8.3.0.0</FileVersion>
+    <Version>8.4.0</Version>
+    <AssemblyVersion>8.4.0.0</AssemblyVersion>
+    <FileVersion>8.4.0.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>SAM.ico</ApplicationIcon>
@@ -35,6 +35,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="MyListView.cs">

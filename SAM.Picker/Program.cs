@@ -1,92 +1,96 @@
-﻿/* Copyright (c) 2024 Rick (rick 'at' gibbed 'dot' us)
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- *    claim that you wrote the original software. If you use this software
- *    in a product, an acknowledgment in the product documentation would
- *    be appreciated but is not required.
- *
- * 2. Altered source versions must be plainly marked as such, and must not
- *    be misrepresented as being the original software.
- *
- * 3. This notice may not be removed or altered from any source
- *    distribution.
- */
-
+// Altered source: single instance, visible background recovery, and crash supervision.
 using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
 using System.Windows.Forms;
+using SAM.API.Orders;
 
 namespace SAM.Picker
 {
     internal static class Program
     {
+        internal static bool BackgroundLaunch;
         [STAThread]
         private static void Main(string[] args)
         {
-            if (Array.IndexOf(args, "--demo") >= 0)
+            if (Array.IndexOf(args, "--watch") >= 0) { Watch(args); return; }
+            bool demo = Array.IndexOf(args, "--demo") >= 0;
+            BackgroundLaunch = Array.IndexOf(args, "--background") >= 0;
+            using var gate = new Mutex(false, "Local\\BSAM-Library" + (demo ? "-Demo" : ""));
+            bool owns;
+            try { owns = gate.WaitOne(0); } catch (AbandonedMutexException) { owns = true; }
+            if (!owns)
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new GamePicker(null, true));
+                try { using var wake = EventWaitHandle.OpenExisting("Local\\BSAM-Show" + (demo ? "-Demo" : "")); wake.Set(); } catch (WaitHandleCannotBeOpenedException) { }
                 return;
             }
-            if (API.Steam.GetInstallPath() == Application.StartupPath)
+            using var signal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\BSAM-Show" + (demo ? "-Demo" : ""));
+            try
             {
-                MessageBox.Show(
-                    "This tool declines to being run from the Steam directory.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                return;
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                if (API.Steam.GetInstallPath() == Application.StartupPath && !demo) { MessageBox.Show("Déplacez l’application hors du dossier Steam."); return; }
+                if (!demo)
+                {
+                    using var current = Process.GetCurrentProcess();
+                    Process.Start(new ProcessStartInfo(Application.ExecutablePath, "--watch " + current.Id + " " + current.StartTime.ToUniversalTime().Ticks) { UseShellExecute = false, CreateNoWindow = true });
+                }
+                using var startup = new StartupContext(demo, signal);
+                Application.Run(startup);
             }
-
-            using (API.Client client = new())
+            finally { gate.ReleaseMutex(); }
+        }
+        private static void Watch(string[] args)
+        {
+            if (args.Length != 3 || !int.TryParse(args[1], out int id) || !long.TryParse(args[2], out long start)) return;
+            try
             {
-                try
-                {
-                    client.Initialize(0);
-                }
-                catch (API.ClientInitializeException e)
-                {
-                    if (string.IsNullOrEmpty(e.Message) == false)
-                    {
-                        MessageBox.Show(
-                            "Steam is not running. Please start Steam then run this tool again.\n\n" +
-                            "(" + e.Message + ")",
-                            "Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                    }
-                    else
-                    {
-                        MessageBox.Show(
-                            "Steam is not running. Please start Steam then run this tool again.",
-                            "Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                    }
-                    return;
-                }
-                catch (DllNotFoundException)
-                {
-                    MessageBox.Show(
-                        "You've caused an exceptional error!",
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new GamePicker(client));
+                using var owner = Process.GetProcessById(id);
+                if (owner.StartTime.ToUniversalTime().Ticks != start) return;
+                owner.WaitForExit();
+                if (owner.ExitCode == 0) return; // Explicit Quit must never be undone by recovery.
+                var state = new JsonStore<BackgroundState>(Path.Combine(Path.GetDirectoryName(OrderPaths.Cart), "background-sessions.json")).Read();
+                if (!state.Startup) return;
+                Thread.Sleep(5000);
+                Process.Start(new ProcessStartInfo(Application.ExecutablePath, "--background") { UseShellExecute = false });
+            }
+            catch (Exception e) when (e is ArgumentException || e is InvalidOperationException || e is IOException || e is UnauthorizedAccessException || e is System.ComponentModel.Win32Exception) { }
+        }
+        private sealed class StartupContext : ApplicationContext
+        {
+            private readonly System.Windows.Forms.Timer _Timer = new() { Interval = 5000 };
+            private readonly NotifyIcon _Waiting;
+            private readonly bool _Demo;
+            private readonly EventWaitHandle _Signal;
+            private API.Client _Client;
+            private GamePicker _Picker;
+            internal StartupContext(bool demo, EventWaitHandle signal)
+            {
+                _Demo = demo; _Signal = signal;
+                var menu = new ContextMenuStrip();
+                menu.Items.Add("Réessayer la connexion Steam", null, (_, _) => Connect());
+                menu.Items.Add("Quitter", null, (_, _) => ExitThread());
+                _Waiting = new NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "BSAM · attente de Steam", Visible = true, ContextMenuStrip = menu };
+                _Timer.Tick += (_, _) => { if (_Picker == null) Connect(); else if (_Signal.WaitOne(0)) _Picker.RestoreFromTray(); };
+                _Timer.Interval = 1000; _Timer.Start();
+                Connect();
+            }
+            private DateTime _NextAttempt;
+            private void Connect()
+            {
+                if (_Picker != null || DateTime.UtcNow < _NextAttempt) return;
+                _NextAttempt = DateTime.UtcNow.AddSeconds(15);
+                API.Client client = null;
+                try { if (!_Demo) { client = new API.Client(); client.Initialize(0); } }
+                catch (Exception e) when (e is API.ClientInitializeException || e is DllNotFoundException || e is InvalidOperationException)
+                { client?.Dispose(); _Waiting.Text = "BSAM · démarrez Steam pour reprendre"; return; }
+                _Client = client; _Picker = new GamePicker(client, _Demo); MainForm = _Picker;
+                _Waiting.Visible = false; _Picker.Show();
+            }
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing) { _Timer.Dispose(); _Waiting.ContextMenuStrip.Dispose(); _Waiting.Dispose(); _Client?.Dispose(); }
+                base.Dispose(disposing);
             }
         }
     }

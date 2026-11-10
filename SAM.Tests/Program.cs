@@ -114,6 +114,7 @@ internal static class Program
             OrderTests.Run(Check);
             UpgradeTests.Run(Check);
             PlaytimeTests.Run(Check);
+            BackgroundTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
@@ -335,6 +336,15 @@ internal static class Program
                     Invoke(library, "StartGameTime");
                     Check(timeJobs.Count == 2, "GameTime does not duplicate active game sessions");
                     CaptureScreen(library, "test-results/gametime.png");
+                    Invoke(library, "RefreshParallelGames");
+                    Field<Panel>(library, "_ParallelPanel").BringToFront(); Pump(100);
+                    Check(Field<ListBox>(library, "_ParallelGames").Items.Count == 2, "parallel Order displays games rather than individual achievements");
+                    Field<TextBox>(library, "_TargetHours").Text = "20";
+                    Field<TextBox>(library, "_WindowFrom").Text = "1";
+                    Field<TextBox>(library, "_WindowTo").Text = "19";
+                    Invoke(library, "SaveParallelGame");
+                    Check(Field<SAM.API.Orders.BackgroundState>(library, "_Background").Games.Any(g => g.Ready && g.TargetHours == 20 && g.WindowStartHours == 1 && g.WindowEndHours == 19), "parallel game's target and unlock window persist from text inputs");
+                    CaptureScreen(library, "test-results/parallel-order.png");
                     Invoke(library, "StopAllGameTime");
                     foreach (var job in timeJobs.Values)
                         Check(Field<Process>(job, "Process").WaitForExit(5000), "GameTime stop-all terminates its owned worker");
@@ -349,7 +359,10 @@ internal static class Program
                     Pump(100);
                 }
                 chrome.Controls.OfType<Button>().First(b => b.AccessibleName == "Fermer").PerformClick();
-                Check(library.IsDisposed, "custom close button closes the library after child cleanup");
+                Check(!library.IsDisposed && !library.Visible, "custom close hides the library in the notification area");
+                library.RestoreFromTray(); Check(library.Visible, "tray restores the same library instance");
+                library.ExitApplication();
+                Check(library.IsDisposed, "explicit Quit closes the library and cleans up workers");
             }
             Console.WriteLine($"{_Assertions} assertions passed.");
             return 0;

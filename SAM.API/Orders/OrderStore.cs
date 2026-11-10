@@ -34,6 +34,7 @@ namespace SAM.API.Orders
                 catch (Exception e) when (e is ArgumentException || e is InvalidOperationException)
                 { throw new InvalidDataException("Le fichier de panier est illisible. Une copie intacte est conservée sur disque.", e); }
                 if (data == null) throw new InvalidDataException("Le fichier de panier est vide.");
+                if (data is BackgroundState background) BackgroundPlanning.Validate(background);
                 if (data is OrderCart cart)
                 {
                     if (cart.Version != 1 || cart.Games == null || cart.GameDelay == null || cart.Games.Any(g => g == null || g.GameId == 0 || g.Delay == null || g.Achievements == null || g.Achievements.Any(a => a == null || string.IsNullOrWhiteSpace(a.Id))))

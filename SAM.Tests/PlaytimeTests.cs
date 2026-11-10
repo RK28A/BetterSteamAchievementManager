@@ -19,8 +19,8 @@ internal static class PlaytimeTests
         check(zero, "zero GameTime duration is rejected before starting processes");
         string folder = Path.Combine(Path.GetTempPath(), "BSAM-Playtime-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
         using var owner = Process.GetCurrentProcess();
-        Process Start(string file, int seconds, bool validOwner = true) => Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SAM.Game.exe"),
-            "620 --demo --playtime --seconds " + seconds + " --owner " + owner.Id + " --owner-start " + (validOwner ? owner.StartTime.ToUniversalTime().Ticks : 1).ToString(CultureInfo.InvariantCulture) + " --status \"" + Path.Combine(folder, file) + "\"") { UseShellExecute = false, CreateNoWindow = true });
+        Process Start(string file, int seconds, bool validOwner = true, double elapsed = 0) => Process.Start(new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SAM.Game.exe"),
+            "620 --demo --playtime --seconds " + seconds + " --elapsed " + elapsed.ToString(CultureInfo.InvariantCulture) + " --owner " + owner.Id + " --owner-start " + (validOwner ? owner.StartTime.ToUniversalTime().Ticks : 1).ToString(CultureInfo.InvariantCulture) + " --status \"" + Path.Combine(folder, file) + "\"") { UseShellExecute = false, CreateNoWindow = true });
         try
         {
             using (var timed = Start("timed.json", 1))
@@ -28,6 +28,12 @@ internal static class PlaytimeTests
                 if (!timed.WaitForExit(15000)) { timed.Kill(); throw new InvalidOperationException("Timed worker did not stop"); }
                 var status = new JsonStore<PlaytimeStatus>(Path.Combine(folder, "timed.json")).Read();
                 check(timed.ExitCode == 0 && status.State == "completed" && status.ElapsedSeconds >= 1, "GameTime stops itself when its duration expires");
+            }
+            using (var resumed = Start("resumed.json", 3, true, 2.5))
+            {
+                check(resumed.WaitForExit(15000), "recovered worker reaches its original target");
+                var status = new JsonStore<PlaytimeStatus>(Path.Combine(folder, "resumed.json")).Read();
+                check(status.State == "completed" && status.ElapsedSeconds == 3 && status.HeartbeatUtc != default, "recovered worker adds active time to its checkpoint without restarting the full duration");
             }
             using (var invalid = Start("invalid.json", 1, false))
             {
