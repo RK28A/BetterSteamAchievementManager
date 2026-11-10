@@ -35,30 +35,31 @@ namespace SAM.Game
             _AchievementListView.ItemCheck -= OnCheckAchievement;
             _ = _AchievementListView.Handle;
             _Cards = new AchievementCards { Icons = _AchievementImageList };
-            _Cards.IconProvider = info => _Demo || string.IsNullOrEmpty(info.IconNormal ?? info.IconLocked) ? null : _AchievementArtwork.Get($"https://cdn.steamstatic.com/steamcommunity/public/images/apps/{_GameId}/{info.IconNormal ?? info.IconLocked}");
-            _AchievementArtwork.Loaded += (_, _) => { if (!_Cards.IsDisposed) _Cards.Invalidate(); };
             _Cards.SelectionEdited += (_, _) => UpdateSelectionSummary();
             _AchievementsTabPage.Controls.Add(_Cards);
             _Cards.BringToFront();
             _EmptyAchievements = SteamTheme.Label("Chargement des succès…", 12, SteamTheme.Muted);
             _EmptyAchievements.Dock = DockStyle.Bottom;
             _AchievementsTabPage.Controls.Add(_EmptyAchievements);
-            _SelectionActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Bottom, Padding = new Padding(10, 4, 10, 4), WrapContents = true };
+            _SelectionActions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Bottom, Padding = new Padding(8), WrapContents = true };
             void Action(string text, EventHandler click)
             {
-                var button = new SAM.UI.ModernButton { Text = text, AutoSize = true, Margin = new Padding(3) };
+                var button = new Button { Text = text, AutoSize = true, Margin = new Padding(3) };
                 button.Click += click;
                 _SelectionActions.Controls.Add(button);
             }
-            var selection = new ContextMenuStrip(components);
-            selection.Items.Add("Tout sélectionner", null, (_, _) => _Cards.SelectVisible("all"));
-            selection.Items.Add("Tout désélectionner", null, (_, _) => { _Cards.SelectedIds.Clear(); _Cards.NotifySelection(); });
-            selection.Items.Add("Inverser la sélection", null, (_, _) => _Cards.SelectVisible("invert"));
-            selection.Items.Add("Sélectionner les non débloqués", null, (_, _) => _Cards.SelectVisible("locked"));
-            SteamTheme.Apply(selection);
-            Action("Sélection  ▾", (sender, _) => { var button = (Control)sender; selection.Show(button, new Point(0, -selection.PreferredSize.Height)); });
+            Action("Tout sélectionner", (_, _) => _Cards.SelectVisible("all"));
+            Action("Tout désélectionner", (_, _) => { _Cards.SelectedIds.Clear(); _Cards.NotifySelection(); });
+            Action("Inverser", (_, _) => _Cards.SelectVisible("invert"));
+            Action("Non débloqués", (_, _) => _Cards.SelectVisible("locked"));
             Action("Débloquer", (_, _) => StageSelected(true));
             Action("Verrouiller", (_, _) => StageSelected(false));
+            Action("Déblocage progressif", (_, _) =>
+            {
+                for (int i = 0; i < _QueueChoices.Items.Count; i++)
+                    _QueueChoices.SetItemChecked(i, _Cards.SelectedIds.Contains(((Stats.AchievementDefinition)_QueueChoices.Items[i]).Id));
+                _MainTabControl.SelectedIndex = 2;
+            });
             Action("Annuler", (_, _) =>
             {
                 foreach (ListViewItem item in _AchievementListView.Items) if (item.Tag is Stats.AchievementInfo info) item.Checked = info.IsAchieved;
@@ -71,7 +72,7 @@ namespace SAM.Game
                 _Cards.Invalidate(); UpdateSelectionSummary();
             });
             _SelectionText = SteamTheme.Label("Aucun succès sélectionné", 9, SteamTheme.Muted);
-            _SelectionText.Dock = DockStyle.Bottom; _SelectionText.Padding = new Padding(14, 2, 0, 2);
+            _SelectionText.Dock = DockStyle.Bottom;
             _AchievementsTabPage.Controls.Add(_SelectionActions);
             _AchievementsTabPage.Controls.Add(_SelectionText);
             _AchievementsToolStrip.Items.Clear();
@@ -92,24 +93,24 @@ namespace SAM.Game
             _EnableStatsEditingCheckBox.Dock = DockStyle.Bottom;
             _EnableStatsEditingCheckBox.Text = "Activer l’édition des statistiques (modifications avancées)";
             _StatisticsDataGridView.BringToFront();
-            var hero = new HeroPanel { Dock = DockStyle.Top, Height = 86, Padding = new Padding(22, 12, 22, 10) };
-            _GameHeading = SteamTheme.Label(name, 22);
+            var hero = new HeroPanel { Dock = DockStyle.Top, Height = 128, Padding = new Padding(24, 12, 24, 12) };
+            _GameHeading = SteamTheme.Label(name, 23);
             _GameHeading.Dock = DockStyle.Top;
-            _ProgressText = SteamTheme.Label("Chargement de votre progression…", 10, SteamTheme.Muted);
+            _ProgressText = SteamTheme.Label("Récupération de votre progression", 11, SteamTheme.Muted);
             _ProgressText.Dock = DockStyle.Top;
-            _GameProgress = new SteamProgress { Dock = DockStyle.Bottom, Height = 3, Maximum = 1000 };
+            _GameProgress = new SteamProgress { Dock = DockStyle.Bottom, Height = 5, Maximum = 1000 };
             var overline = SteamTheme.Label("PROGRESSION DES SUCCÈS", 9, SteamTheme.Accent);
             overline.Dock = DockStyle.Top;
             hero.Controls.Add(_GameProgress);
             hero.Controls.Add(_ProgressText);
             hero.Controls.Add(_GameHeading);
-            overline.Dispose();
-            var navigation = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(12, 0, 0, 0), WrapContents = false };
+            hero.Controls.Add(overline);
+            var navigation = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(12, 0, 0, 0), WrapContents = false };
             var navigationButtons = new System.Collections.Generic.List<Button>();
             for (int index = 0; index < _MainTabControl.TabPages.Count; index++)
             {
                 int pageIndex = index;
-                var button = new SAM.UI.ModernButton { Text = _MainTabControl.TabPages[index].Text, AutoSize = true, Margin = new Padding(0, 0, 6, 0), Height = 36 };
+                var button = new Button { Text = _MainTabControl.TabPages[index].Text, AutoSize = true, Margin = new Padding(0, 0, 6, 0), Height = 36 };
                 button.Click += (_, _) => _MainTabControl.SelectedIndex = pageIndex;
                 navigation.Controls.Add(button);
                 navigationButtons.Add(button);
@@ -129,13 +130,14 @@ namespace SAM.Game
             SteamTheme.Apply(this);
             foreach (Control child in hero.Controls) if (child is Label) child.BackColor = Color.Transparent;
             UpdateNavigation();
+            _QueueStatus.MaximumSize = new Size(850, 0);
             _CallbackTimer.Enabled = !_Demo;
-            FormClosed += (_, _) => { _AchievementArtwork.Dispose(); _AchievementListView.Dispose(); };
+            FormClosed += (_, _) => { _IconDownloader.CancelAsync(); _IconDownloader.Dispose(); _AchievementListView.Dispose(); };
             FormClosing += (_, e) =>
             {
                 // Hosted views are closed by their owning library after its single confirmation.
                 if (_Embedded || _Demo) return;
-                if ((HasPendingChanges || _ManualSaving) &&
+                if ((HasPendingChanges || _QueueRunning || _SavingAchievement != null || _ManualSaving) &&
                     MessageBox.Show(this, "Fermer ce jeu et abandonner les modifications ou la file en cours ?", "Fermer", MessageBoxButtons.YesNo) != DialogResult.Yes) e.Cancel = true;
             };
             ResumeLayout(true);
@@ -143,7 +145,7 @@ namespace SAM.Game
 
         internal void StageSelected(bool achieved)
         {
-            if (!_StatsReady || _ManualSaving || _CartSaving) return;
+            if (!_StatsReady || _ManualSaving || _CartSaving || _QueueRunning || _SavingAchievement != null) return;
             foreach (ListViewItem item in _AchievementListView.Items)
                 if (item.Tag is Stats.AchievementInfo info && (info.Permission & 3) == 0 && _Cards.SelectedIds.Contains(info.Id)) item.Checked = achieved;
             _Cards.Invalidate();
@@ -174,7 +176,7 @@ namespace SAM.Game
         {
             if (_Cards == null) return;
             int pending = _AchievementListView.Items.Cast<ListViewItem>().Count(i => i.Tag is Stats.AchievementInfo info && i.Checked != info.IsAchieved);
-            _SelectionText.Text = $"{_Cards.SelectedIds.Count} sélectionné(s)  ·  {pending} modification(s) en attente";
+            _SelectionText.Text = $"{_Cards.SelectedIds.Count} sélectionné(s) · {pending} modification(s) en attente · les actions de sélection portent sur les cartes affichées";
             var infos = _AchievementListView.Items.Cast<ListViewItem>().Select(i => (Stats.AchievementInfo)i.Tag).ToList();
             int unlocked = infos.Count(i => i.IsAchieved);
             _ProgressText.Text = $"{unlocked} / {infos.Count} succès débloqués  ·  {(infos.Count == 0 ? 0 : 100 * unlocked / infos.Count)} % terminés";
@@ -207,8 +209,9 @@ namespace SAM.Game
             }
             _IsUpdatingAchievementList = false;
             _GameStatusLabel.Text = "DÉMONSTRATION · aucune connexion Steam · aucune écriture réelle";
+            _QueueStatus.Text = "La file reste désactivée dans la démonstration.";
             EnableInput();
-            _StoreButton.Enabled = _ResetButton.Enabled = false;
+            _StoreButton.Enabled = _StartQueue.Enabled = _ResetButton.Enabled = false;
             _RarityStatus.Text = "Rareté de démonstration";
             RefilterCards(); PublishLibraryProgress();
         }

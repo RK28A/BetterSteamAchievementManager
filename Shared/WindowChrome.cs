@@ -21,8 +21,8 @@ namespace SAM.UI
             form.FormBorderStyle = FormBorderStyle.None;
             form.Padding = new Padding(3);
             form.BackColor = SteamTheme.Background;
-            var caption = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = SteamTheme.Background, AccessibleName = "Barre de fenêtre" };
-            var title = new Label { Dock = DockStyle.Fill, Text = "◈   BETTER ACHIEVEMENTS", TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0), Font = new Font("Segoe UI", 9), ForeColor = SteamTheme.Muted };
+            var caption = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = SteamTheme.Background, AccessibleName = "Barre de fenêtre" };
+            var title = new Label { Dock = DockStyle.Fill, Text = "BETTER STEAM ACHIEVEMENT MANAGER", TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0), Font = new Font("Segoe UI", 9), ForeColor = SteamTheme.Muted };
             void Maximize()
             {
                     form.WindowState = form.WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;

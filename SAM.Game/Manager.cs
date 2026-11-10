@@ -40,8 +40,9 @@ namespace SAM.Game
         private readonly API.Client _SteamClient;
         private readonly IStatsGateway _StatsGateway;
 
-        private readonly SAM.UI.CachedArtwork _AchievementArtwork = new();
+        private readonly WebClient _IconDownloader = new();
 
+        private readonly List<Stats.AchievementInfo> _IconQueue = new();
         private readonly List<Stats.StatDefinition> _StatDefinitions = new();
 
         private readonly List<Stats.AchievementDefinition> _AchievementDefinitions = new();
@@ -88,6 +89,7 @@ namespace SAM.Game
             this._SteamClient = client;
             this._StatsGateway = statsGateway ?? (demo ? null : new SteamStatsGateway(client.SteamUserStats));
 
+            this._IconDownloader.DownloadDataCompleted += this.OnIconDownload;
 
             string name = demo ? (gameId == 620 ? "Portal 2" : gameId == 400 ? "Portal" : "Counter-Strike 2") : this._SteamClient.SteamApps001.GetAppData((uint)this._GameId, "name");
             if (name != null)
@@ -111,6 +113,74 @@ namespace SAM.Game
             this.InitializeLibraryView(name ?? this._GameId.ToString(CultureInfo.InvariantCulture));
             this.InitializeOrder(cartPath, commandPath, embedded);
             if (demo) this.InitializeDemo(); else this.RefreshStats();
+        }
+
+        private void AddAchievementIcon(Stats.AchievementInfo info, Image icon)
+        {
+            if (icon == null)
+            {
+                info.ImageIndex = 0;
+            }
+            else
+            {
+                info.ImageIndex = this._AchievementImageList.Images.Count;
+                this._AchievementImageList.Images.Add(info.IsAchieved == true ? info.IconNormal : info.IconLocked, icon);
+            }
+        }
+
+        private void OnIconDownload(object sender, DownloadDataCompletedEventArgs e)
+        {
+            if (IsDisposed || Disposing) return;
+            if (e.Error == null && e.Cancelled == false)
+            {
+                var info = (Stats.AchievementInfo)e.UserState;
+
+                Bitmap bitmap;
+                try
+                {
+                    using (MemoryStream stream = new())
+                    {
+                        stream.Write(e.Result, 0, e.Result.Length);
+                        using var decoded = new Bitmap(stream);
+                        bitmap = new(decoded);
+                    }
+                }
+                catch (Exception)
+                {
+                    bitmap = null;
+                }
+
+                this.AddAchievementIcon(info, bitmap);
+                bitmap?.Dispose();
+                this._Cards?.Invalidate();
+            }
+
+            this.DownloadNextIcon();
+        }
+
+        private void DownloadNextIcon()
+        {
+            if (this._IconQueue.Count == 0)
+            {
+                this._DownloadStatusLabel.Visible = false;
+                return;
+            }
+
+            if (this._IconDownloader.IsBusy == true)
+            {
+                return;
+            }
+
+            this._DownloadStatusLabel.Text = $"Downloading {this._IconQueue.Count} icons...";
+            this._DownloadStatusLabel.Visible = true;
+
+            var info = this._IconQueue[0];
+            this._IconQueue.RemoveAt(0);
+
+
+            this._IconDownloader.DownloadDataAsync(
+                new Uri(_($"https://cdn.steamstatic.com/steamcommunity/public/images/apps/{this._GameId}/{(info.IsAchieved == true ? info.IconNormal : info.IconLocked)}")),
+                info);
         }
 
         private static string TranslateError(int id) => id switch
@@ -145,10 +215,6 @@ namespace SAM.Game
             return defaultValue;
         }
 
-        private DateTime _SchemaStamp;
-        private long _SchemaLength;
-        private string _SchemaLanguage;
-        private bool _SchemaLoaded;
         private bool LoadUserGameStatsSchema()
         {
             string path;
@@ -167,15 +233,13 @@ namespace SAM.Game
                 return false;
             }
 
-            var file = new FileInfo(path);
-            var currentLanguage = this._SteamClient.SteamApps008.GetCurrentGameLanguage();
-            if (_SchemaLoaded && _SchemaStamp == file.LastWriteTimeUtc && _SchemaLength == file.Length && _SchemaLanguage == currentLanguage) return true;
-            _SchemaLoaded = false;
             var kv = KeyValue.LoadAsBinary(path);
             if (kv == null)
             {
                 return false;
             }
+
+            var currentLanguage = this._SteamClient.SteamApps008.GetCurrentGameLanguage();
 
             this._AchievementDefinitions.Clear();
             this._StatDefinitions.Clear();
@@ -309,7 +373,6 @@ namespace SAM.Game
                 }
             }
 
-            _SchemaStamp = file.LastWriteTimeUtc; _SchemaLength = file.Length; _SchemaLanguage = currentLanguage; _SchemaLoaded = true;
             return true;
         }
 
@@ -382,6 +445,7 @@ namespace SAM.Game
             if (_Demo) return;
             LoadRarity();
             this.DisableInput();
+            this._IconQueue.Clear();
 
             var steamId = this._SteamClient.SteamUser.GetSteamId();
 
@@ -467,6 +531,7 @@ namespace SAM.Game
 
                 info.ImageIndex = 0;
 
+                this.AddAchievementToIconQueue(info, false);
                 this._AchievementListView.Items.Add(item);
             }
 
@@ -476,6 +541,7 @@ namespace SAM.Game
             this._Cards.SelectedIds.IntersectWith(this._AchievementDefinitions.Select(d => d.Id));
             this.RefilterCards();
             this.PublishLibraryProgress();
+            this.DownloadNextIcon();
         }
 
         private void GetStatistics()
@@ -519,6 +585,26 @@ namespace SAM.Game
                         IsIncrementOnly = floatStat.IncrementOnly,
                         Permission = floatStat.Permission,
                     });
+                }
+            }
+        }
+
+        private void AddAchievementToIconQueue(Stats.AchievementInfo info, bool startDownload)
+        {
+            int imageIndex = this._AchievementImageList.Images.IndexOfKey(
+                info.IsAchieved == true ? info.IconNormal : info.IconLocked);
+
+            if (imageIndex >= 0)
+            {
+                info.ImageIndex = imageIndex;
+            }
+            else
+            {
+                this._IconQueue.Add(info);
+
+                if (startDownload == true)
+                {
+                    this.DownloadNextIcon();
                 }
             }
         }
@@ -621,6 +707,7 @@ namespace SAM.Game
         private void DisableInput()
         {
             this.SetViewInput(false);
+            this.SetSchedulerReady(false);
             this._ReloadButton.Enabled = false;
             this._StoreButton.Enabled = false;
         }
@@ -628,6 +715,7 @@ namespace SAM.Game
         private void EnableInput()
         {
             this.SetViewInput(true);
+            this.SetSchedulerReady(true);
             this._ReloadButton.Enabled = true;
             this._StoreButton.Enabled = true;
         }
@@ -697,7 +785,7 @@ namespace SAM.Game
 
         private void OnStore(object sender, EventArgs e)
         {
-            if (_Demo || !_StatsReady || _ManualSaving || _CartSaving) return;
+            if (_Demo || !_StatsReady || _ManualSaving || _CartSaving || _QueueRunning || _SavingAchievement != null) return;
             this._StatisticsDataGridView.EndEdit();
             if (!this.ValidateChildren()) return;
             this.DisableInput();

@@ -13,6 +13,29 @@ using SAM.Game;
 internal static class Program
 {
     private static int _Assertions;
+    private sealed class FakeStats : IStatsGateway
+    {
+        internal int Sets, Stores;
+        internal bool ReadOk = true, SetOk = true, StoreOk = true;
+        public bool ReadAchievement(string id, out bool achieved) { achieved = false; return ReadOk; }
+        public bool SetAchievement(string id, bool achieved) { Sets++; return SetOk; }
+        public bool Store() { Stores++; return StoreOk; }
+    }
+    private static void SetField(object obj, string name, object value) => obj.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(obj, value);
+    private static void Due(Manager manager)
+    {
+        SetField(manager, "_QueueDelay", TimeSpan.Zero);
+        Invoke(manager, "TickQueue", null, EventArgs.Empty);
+    }
+    private static Manager Queued(FakeStats stats)
+    {
+        var manager = new Manager(620, null, true, stats);
+        var choices = Field<CheckedListBox>(manager, "_QueueChoices");
+        choices.SetItemChecked(0, true);
+        choices.SetItemChecked(1, true);
+        Invoke(manager, "StartQueue", null, EventArgs.Empty);
+        return manager;
+    }
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr parent, uint command);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     private static IntPtr FindEmbedded(Panel panel, Process process)
@@ -90,8 +113,6 @@ internal static class Program
         {
             OrderTests.Run(Check);
             UpgradeTests.Run(Check);
-            ExperienceTests.Run(Check);
-            ImmediateOrderTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
@@ -127,15 +148,61 @@ internal static class Program
                 Check(cards.Items.Count == 2 && !locked.Checked, "achieved filter is mutually exclusive");
                 unlocked.PerformClick();
                 Check(cards.Items.Count == 7, "both filters off shows all achievements");
-                Check(Field<TabControl>(manager, "_MainTabControl").TabPages.Count == 2, "achievement timing tab has been removed");
-                Check(!Field<ToolStripButton>(manager, "_StoreButton").Enabled, "demo cannot send Steam writes");
+                Check(Field<NumericUpDown>(manager, "_MinimumMinutes").Value == 3 && Field<NumericUpDown>(manager, "_MaximumMinutes").Value == 10, "original timing defaults preserved");
+                Check(!Field<Button>(manager, "_StartQueue").Enabled && !Field<ToolStripButton>(manager, "_StoreButton").Enabled, "demo cannot send Steam writes");
+                Invoke(manager, "StopQueue", "Test d’arrêt");
+                Check(!Field<bool>(manager, "_QueueRunning") && Field<System.Collections.Generic.Queue<SAM.Game.Stats.AchievementDefinition>>(manager, "_PendingAchievements").Count == 0, "stop clears all future queued sends");
                 manager.Size = new Size(1000, 760); Pump(100);
                 Check(cards.ClientSize.Width > 600 && cards.ClientSize.Height > 100, "cards fit regular desktop layout");
                 Capture(manager, "test-results/achievements.png");
                 manager.Size = new Size(760, 620); Pump(100);
                 Check(cards.ClientSize.Width > 500 && cards.ClientSize.Height > 70, "cards remain usable at minimum width");
                 Capture(manager, "test-results/achievements-compact.png");
+                Field<TabControl>(manager, "_MainTabControl").SelectedIndex = 2; Pump(100);
+                Capture(manager, "test-results/timing.png");
                 manager.Close();
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                var stats = (FakeStats)Field<IStatsGateway>(queue, "_StatsGateway");
+                Invoke(queue, "TickQueue", null, EventArgs.Empty);
+                Check(stats.Sets == 0, "first achievement waits for its delay");
+                Due(queue);
+                Check(stats.Sets == 1 && stats.Stores == 1, "deadline sends exactly one achievement");
+                Due(queue);
+                Check(stats.Sets == 1, "no second send before Steam confirms");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 400, Result = 1 });
+                Check(Field<SAM.Game.Stats.AchievementDefinition>(queue, "_SavingAchievement") != null, "confirmation for another game is ignored");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 1 });
+                Invoke(queue, "TickQueue", null, EventArgs.Empty);
+                Check(stats.Sets == 1, "next achievement receives a new full delay");
+                Invoke(queue, "StopQueue", "Test");
+                Due(queue);
+                Check(stats.Sets == 1 && !Field<bool>(queue, "_QueueRunning"), "stopping while waiting prevents the next write");
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                Due(queue);
+                Invoke(queue, "StopQueue", "Test");
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 1 });
+                Due(queue);
+                Check(((FakeStats)Field<IStatsGateway>(queue, "_StatsGateway")).Sets == 1, "stopping during confirmation never advances the queue");
+            }
+            using (var queue = Queued(new FakeStats()))
+            {
+                Due(queue);
+                Invoke(queue, "OnQueueStored", new SAM.API.Types.UserStatsStored { GameId = 620, Result = 2 });
+                Due(queue);
+                Check(((FakeStats)Field<IStatsGateway>(queue, "_StatsGateway")).Sets == 1 && !Field<bool>(queue, "_QueueRunning"), "Steam rejection halts the queue");
+            }
+            foreach (string failure in new[] { "read", "set", "store" })
+            {
+                var stats = new FakeStats { ReadOk = failure != "read", SetOk = failure != "set", StoreOk = failure != "store" };
+                using var queue = Queued(stats);
+                Due(queue);
+                int count = stats.Sets;
+                Due(queue);
+                Check(!Field<bool>(queue, "_QueueRunning") && stats.Sets == count, failure + " failure prevents later sends");
             }
             // Verify the real cross-process hosting path using an offline child view.
             using (var host = new Form { ClientSize = new Size(960, 720) })
@@ -196,14 +263,22 @@ internal static class Program
                     SAM.API.Orders.OrderPaths.Add(cartStore, new SAM.API.Orders.OrderGroup { GameId = 400, Name = "Portal", Achievements = new System.Collections.Generic.List<SAM.API.Orders.OrderAchievement> { new() { Id = "C", Name = "Le début de l’aventure" } } });
                     Field<Button>(library, "_OrderButton").PerformClick(); Pump(200);
                     Check(Field<SAM.Picker.OrderRows>(library, "_OrderRows").Items.Count == 5, "cart renders game groups and achievements");
-                    Field<CheckBox>(library, "_ParallelOrder").Checked = true;
-                    Field<NumericUpDown>(library, "_ConcurrentGames").Value = 3;
-                    Check(cartStore.Read().Parallel && cartStore.Read().ConcurrentGames == 3, "cart persists parallel preparation without achievement timers");
+                    var editor = Field<SAM.Picker.RangeEditor>(library, "_SuccessRange");
+                    Field<ComboBox>(editor, "_Unit").SelectedIndex = 1;
+                    Field<TrackBar>(editor, "_Min").Value = 2;
+                    Field<TrackBar>(editor, "_Max").Value = 8;
+                    Check(cartStore.Read().Games[0].Delay.Unit == SAM.API.Orders.TimeUnit.Hours && cartStore.Read().Games[0].Delay.Minimum == 2 && cartStore.Read().Games[0].Delay.Maximum == 8, "cart sliders persist per-game hour ranges");
+                    Field<CheckBox>(library, "_BetweenGames").Checked = true;
+                    Check(cartStore.Read().BetweenGames, "cart enables the inter-game timer");
+                    var gameRange = Field<SAM.Picker.RangeEditor>(library, "_GameRange");
+                    var settings = (ScrollableControl)gameRange.Parent;
+                    settings.ScrollControlIntoView(gameRange); Pump(100);
+                    Check(gameRange.Bottom <= settings.ClientSize.Height && gameRange.Top >= 0, "inter-game sliders remain reachable in a compact window");
                     Check(!Field<Button>(library, "_RunOrder").Enabled, "cart demonstration cannot execute Steam writes");
                     var orderPanel = Field<Panel>(library, "_OrderPanel");
                     var hostPanel = Field<Panel>(library, "_GameHost");
                     Check(ChildWindowFromPointEx(hostPanel.Handle, new Point(20, 20), 1) == orderPanel.Handle, "cart is actually in front of embedded game windows");
-                    Check(Field<Label>(library, "_OrderEstimate").Text.Contains("aucun délai"), "cart clearly shows immediate processing");
+                    Check(Field<Label>(library, "_OrderEstimate").Text.Contains("Fin estimée"), "planning is visible inside the cart");
                     var rows = Field<SAM.Picker.OrderRows>(library, "_OrderRows");
                     Check(rows.AllowDrop, "stopped cart exposes drag and drop");
                     rows.TopIndex = 0;
@@ -248,22 +323,6 @@ internal static class Program
                     Check(Field<ListView>(library, "_GameListView").VirtualListSize == Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames").Count, "repeated library filter changes keep native indices synchronized");
                     Invoke(library, "OpenGame", 0); Pump(200);
                     CaptureScreen(library, "test-results/library-favorites.png");
-                    Field<Button>(library, "_TimeButton").PerformClick(); Pump(200);
-                    Check(Field<CheckedListBox>(library, "_TimeGames").Items.Count == 3, "GameTime lists owned games independently of library filters");
-                    Field<CheckBox>(library, "_TimeRandom").Checked = true;
-                    Field<CheckedListBox>(library, "_TimeGames").SetItemChecked(0, true);
-                    Invoke(library, "StartGameTime");
-                    Pump(1600);
-                    var jobs = Field<System.Collections.IDictionary>(library, "_TimeJobs");
-                    Check(jobs.Count == 1, "GameTime starts the selected simulated game");
-                    var job = jobs.Values.Cast<object>().Single();
-                    var timeProcess = Field<Process>(job, "Process");
-                    library.Close(); Pump(1600);
-                    Check(!library.Visible && !library.IsDisposed && !timeProcess.HasExited && Field<Label>(library, "_TimeSummary").Text.Contains("1 session"), "tray keeps GameTime and its background polling alive");
-                    library.RestoreFromTray();
-                    CaptureScreen(library, "test-results/gametime.png");
-                    Invoke(library, "StopAllGameTime");
-                    Check(timeProcess.WaitForExit(5000), "stopping GameTime terminates its owned worker");
                 }
                 finally
                 {
@@ -275,12 +334,7 @@ internal static class Program
                     Pump(100);
                 }
                 chrome.Controls.OfType<Button>().First(b => b.AccessibleName == "Fermer").PerformClick();
-                Check(!library.IsDisposed && !library.Visible, "custom close button hides the library without stopping its message loop");
-                Check(Field<NotifyIcon>(library, "_Tray").Visible, "hidden library remains accessible in the Windows tray");
-                library.RestoreFromTray();
-                Check(library.Visible, "tray action restores the existing library window");
-                library.ExitApplication();
-                Check(library.IsDisposed, "explicit tray quit exits the application");
+                Check(library.IsDisposed, "custom close button closes the library after child cleanup");
             }
             Console.WriteLine($"{_Assertions} assertions passed.");
             return 0;

@@ -41,9 +41,6 @@ namespace SAM.API.Orders
         public int Version { get; set; } = 1;
         public List<OrderGroup> Games { get; set; } = new();
         public bool BetweenGames { get; set; }
-        public bool Parallel { get; set; }
-        public int ConcurrentGames { get; set; } = 2;
-        public int SpacingMinutes { get; set; } = 1;
         public DelayRange GameDelay { get; set; } = new() { Minimum = 5, Maximum = 15 };
         public OrderCheckpoint Checkpoint { get; set; }
         public List<OrderHistoryEntry> History { get; set; } = new();
@@ -52,17 +49,8 @@ namespace SAM.API.Orders
         public bool IsRunning => !string.IsNullOrEmpty(ActiveRun) && LeaseUntilUtc > DateTime.UtcNow;
         public int Count => Games.Sum(g => g.Achievements.Count);
     }
-    internal sealed class OrderLaneCheckpoint
-    {
-        public uint GameId { get; set; }
-        public string AchievementId { get; set; }
-        public double RemainingSeconds { get; set; }
-    }
     internal sealed class OrderCheckpoint
     {
-        public bool Parallel { get; set; }
-        public List<OrderLaneCheckpoint> Lanes { get; set; } = new();
-        public double GlobalRemainingSeconds { get; set; }
         public uint GameId { get; set; }
         public string AchievementId { get; set; }
         public bool BetweenGames { get; set; }

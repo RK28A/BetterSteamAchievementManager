@@ -19,15 +19,14 @@ namespace SAM.Game
         private bool _RarityLoading, _RarityLoaded;
         private void InitializeDiscovery()
         {
-            _AchievementSort = new SteamComboBox { Width = 165, AccessibleName = "Trier les succès du jeu" };
+            var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(12, 4, 12, 4), WrapContents = true };
+            _AchievementSort = new SteamComboBox { Width = 210, AccessibleName = "Trier les succès du jeu" };
             _AchievementSort.Items.AddRange(new object[] { "Ordre du jeu", "Nom A–Z", "Les plus rares", "Les plus courants", "Non débloqués d’abord", "Débloqués récemment" });
             _AchievementSort.SelectedIndex = 0;
             _AchievementSort.SelectedIndexChanged += (_, _) => RefilterCards();
             _RarityStatus = SteamTheme.Label("Rareté mondiale · chargement à l’ouverture", 9, SteamTheme.Muted);
-            _AchievementsToolStrip.Items.Add(new ToolStripSeparator());
-            _AchievementsToolStrip.Items.Add(new ToolStripControlHost(_AchievementSort) { AutoSize = false, Width = 165, Height = 30 });
-            _RarityStatus.Visible = false;
-            _Cards.BringToFront();
+            bar.Controls.Add(SteamTheme.Label("Trier", 10)); bar.Controls.Add(_AchievementSort); bar.Controls.Add(_RarityStatus);
+            _AchievementsTabPage.Controls.Add(bar); _Cards.BringToFront();
             FormClosed += (_, _) => { _RarityCancel.Cancel(); _RarityCancel.Dispose(); };
         }
         internal IEnumerable<Stats.AchievementInfo> SortAchievements(IEnumerable<Stats.AchievementInfo> items)

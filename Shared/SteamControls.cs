@@ -4,23 +4,6 @@ using System.Windows.Forms;
 
 namespace SAM.UI
 {
-    internal sealed class ModernButton : Button
-    {
-        private bool _Hover;
-        internal ModernButton() { FlatStyle = FlatStyle.Flat; FlatAppearance.BorderSize = 0; DoubleBuffered = true; Cursor = Cursors.Hand; }
-        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _Hover = true; Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _Hover = false; Invalidate(); }
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            e.Graphics.Clear(Parent?.BackColor ?? SteamTheme.Background);
-            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using var shape = SteamTheme.Rounded(new Rectangle(1, 1, Width - 3, Height - 3), 7);
-            using var fill = new SolidBrush(_Hover && Enabled ? SteamTheme.Blue : BackColor);
-            e.Graphics.FillPath(fill, shape);
-            if (Focused && ShowFocusCues) { using var pen = new Pen(SteamTheme.Accent); e.Graphics.DrawPath(pen, shape); }
-            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, Enabled ? ForeColor : SteamTheme.Muted, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-        }
-    }
     internal sealed class SteamComboBox : ComboBox
     {
         internal SteamComboBox()

@@ -5,7 +5,7 @@
     <LangVersion>9.0</LangVersion>
     <PlatformTarget>x86</PlatformTarget>
     <AssemblyName>BetterSteamAchievementManager</AssemblyName>
-    <Version>8.3.0</Version>
+    <Version>8.2.0</Version>
     <ApplicationIcon>..\SAM.Picker\SAM.ico</ApplicationIcon>
     <ApplicationManifest>..\SAM.Picker\app.manifest</ApplicationManifest>
     <OutputPath>..\dist\</OutputPath>
