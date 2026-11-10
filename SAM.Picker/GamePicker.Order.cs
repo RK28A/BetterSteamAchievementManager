@@ -29,6 +29,8 @@ namespace SAM.Picker
         private DateTime _LastLease;
         private string _OrderMessage = "Ajoutez des succès depuis vos jeux, puis choisissez leurs délais.";
         private string _CartPath, _CommandPath;
+        private System.Threading.Mutex _OrderRunGate;
+        private bool _OwnOrderRunGate;
 
         private void InitializeOrderCart()
         {
@@ -156,6 +158,10 @@ namespace SAM.Picker
             if (_Demo || _Runner.Running) return;
             try
             {
+                _OrderRunGate = new System.Threading.Mutex(false, "Local\\BSAM-AchievementOrder-Run");
+                try { _OwnOrderRunGate = _OrderRunGate.WaitOne(0); }
+                catch (System.Threading.AbandonedMutexException) { _OwnOrderRunGate = true; }
+                if (!_OwnOrderRunGate) throw new InvalidOperationException("Une commande s’exécute déjà dans une autre fenêtre.");
                 var cart = _OrderStore.Read(); OrderPaths.EnsureEditable(cart);
                 foreach (var game in cart.Games) game.Achievements.RemoveAll(a => a.Status == "done");
                 cart.Games.RemoveAll(g => g.Achievements.Count == 0);
@@ -177,9 +183,16 @@ namespace SAM.Picker
         }
         private void ReleaseOrderLease()
         {
-            if (_RunId == null) return;
-            try { _OrderStore.Update(cart => { if (cart.ActiveRun == _RunId) { cart.ActiveRun = null; cart.LeaseUntilUtc = DateTime.MinValue; } }); }
-            catch (IOException) { }
+            try
+            {
+                if (_RunId != null) _OrderStore.Update(cart => { if (cart.ActiveRun == _RunId) { cart.ActiveRun = null; cart.LeaseUntilUtc = DateTime.MinValue; } });
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException) { }
+            finally
+            {
+                if (_OwnOrderRunGate) { _OrderRunGate.ReleaseMutex(); _OwnOrderRunGate = false; }
+                _OrderRunGate?.Dispose(); _OrderRunGate = null; _RunId = null;
+            }
         }
         private void TickOrder()
         {
