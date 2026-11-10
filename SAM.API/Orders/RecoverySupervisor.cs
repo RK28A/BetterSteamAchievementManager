@@ -10,6 +10,9 @@ namespace SAM.API.Orders
         {
             using var owner = Process.GetProcessById(processId);
             if (owner.StartTime.ToUniversalTime().Ticks != startTicks) return false;
+            // On .NET Framework, GetProcessById does not retain a process handle.
+            // Keep it open before the process exits so its exit code remains readable.
+            _ = owner.Handle;
             owner.WaitForExit();
             return owner.ExitCode != 0;
         }
