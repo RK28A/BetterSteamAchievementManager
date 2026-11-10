@@ -109,7 +109,7 @@ namespace SAM.Game
 
         private void StartQueue(object sender, EventArgs e)
         {
-            if (this._StatsGateway == null || this._ManualSaving || this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
+            if (this._StatsGateway == null || this._CartSaving || this._ManualSaving || this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
             if (this.HasPendingChanges) { MessageBox.Show(this, "Enregistrez ou annulez les modifications manuelles avant de démarrer la file."); return; }
             if (this._MinimumMinutes.Value > this._MaximumMinutes.Value)
             {
@@ -175,6 +175,7 @@ namespace SAM.Game
         private void OnQueueStored(API.Types.UserStatsStored result)
         {
             if (result.GameId != (ulong)this._GameId) return;
+            if (this.OnCartStored(result)) return;
             if (this._ManualSaving)
             {
                 this._ManualSaving = false;

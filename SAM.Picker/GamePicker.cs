@@ -71,6 +71,8 @@ namespace SAM.Picker
 
             this._LogoImageList.Images.Add("Blank", blank);
 
+            SAM.UI.WindowChrome.Apply(this);
+            this.InitializeOrderCart();
             this._SteamClient = client;
 
             this.FormClosing += this.OnLibraryClosing;

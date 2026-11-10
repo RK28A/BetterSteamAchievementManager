@@ -41,12 +41,9 @@ namespace SAM.Picker
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Segoe UI", 10);
-            var top = new Panel { Dock = DockStyle.Top, Height = 88, Padding = new Padding(26, 14, 20, 8) };
-            var brand = SteamTheme.Label("BETTER  /  STEAM ACHIEVEMENT MANAGER", 12);
-            brand.Dock = DockStyle.Top;
+            var top = new Panel { Dock = DockStyle.Top, Height = 52, Padding = new Padding(26, 14, 20, 8) };
             var nav = SteamTheme.Label("BIBLIOTHÈQUE", 17, SteamTheme.Accent);
             nav.Dock = DockStyle.Bottom;
-            top.Controls.Add(brand);
             top.Controls.Add(nav);
             var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 2, FixedPanel = FixedPanel.Panel1, BackColor = SteamTheme.Surface };
             split.Size = ClientSize;
@@ -103,7 +100,7 @@ namespace SAM.Picker
             _FilterJunkMenuItem = Filter("Autres", false);
             _FilterDropDownButton.DropDownItems.AddRange(new ToolStripItem[] { _FilterGamesMenuItem, _FilterDemosMenuItem, _FilterModsMenuItem, _FilterJunkMenuItem });
             var about = new ToolStripMenuItem("À propos");
-            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.0\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
+            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.1\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
             _FilterDropDownButton.DropDownItems.Add(new ToolStripSeparator());
             _FilterDropDownButton.DropDownItems.Add(about);
             _PickerToolStrip.Items.AddRange(new ToolStripItem[] { _RefreshGamesButton, new ToolStripSeparator(), new ToolStripLabel("App ID"), _AddGameTextBox, _AddGameButton, new ToolStripSeparator(), _FilterDropDownButton });

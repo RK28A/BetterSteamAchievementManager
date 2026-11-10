@@ -5,7 +5,7 @@
     <LangVersion>9.0</LangVersion>
     <PlatformTarget>x86</PlatformTarget>
     <AssemblyName>BetterSteamAchievementManager</AssemblyName>
-    <Version>8.0.0</Version>
+    <Version>8.1.0</Version>
     <ApplicationIcon>..\SAM.Picker\SAM.ico</ApplicationIcon>
     <ApplicationManifest>..\SAM.Picker\app.manifest</ApplicationManifest>
     <OutputPath>..\dist\</OutputPath>
@@ -13,7 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
-    <EmbeddedResource Include="..\upload\*.exe;..\upload\*.dll;..\upload\*.config;..\LICENSE.txt;..\README.md">
+    <EmbeddedResource Include="..\upload\*.exe;..\upload\*.dll;..\upload\*.config;..\LICENSE.txt;..\README.md;..\THIRD_PARTY_NOTICES.txt">
       <LogicalName>Payload.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

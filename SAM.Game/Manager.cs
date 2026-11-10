@@ -53,7 +53,7 @@ namespace SAM.Game
 
         //private API.Callback<APITypes.UserStatsStored> UserStatsStoredCallback;
 
-        public Manager(long gameId, API.Client client, bool demo = false, IStatsGateway statsGateway = null)
+        public Manager(long gameId, API.Client client, bool demo = false, IStatsGateway statsGateway = null, string cartPath = null, string commandPath = null, bool embedded = false)
         {
             this._Demo = demo;
             this.InitializeComponent();
@@ -111,6 +111,7 @@ namespace SAM.Game
 
             this.InitializeScheduler();
             this.InitializeLibraryView(name ?? this._GameId.ToString(CultureInfo.InvariantCulture));
+            this.InitializeOrder(cartPath, commandPath, embedded);
             if (demo) this.InitializeDemo(); else this.RefreshStats();
         }
 
@@ -721,6 +722,13 @@ namespace SAM.Game
             this._CallbackTimer.Enabled = false;
             try { this._SteamClient.RunCallbacks(false); }
             finally { this._CallbackTimer.Enabled = true; }
+            this.PollOrderCommand();
+            if (this._CartSaving && !this._CartTimeoutReported && this._CartConfirmationClock.Elapsed > TimeSpan.FromSeconds(60))
+            {
+                this._CartTimeoutReported = true;
+                this.FinishOrderCommand(this._CartCommandId, "unknown", "Aucune confirmation Steam. Envoi non confirmé ; relancez le jeu avant de réessayer.");
+                this._GameStatusLabel.Text = "Achievement Order : confirmation inconnue · écritures bloquées";
+            }
             if (this._ManualSaving && this._ManualClock.Elapsed > TimeSpan.FromSeconds(60))
                 this._GameStatusLabel.Text = "Enregistrement non confirmé. Écritures bloquées jusqu’à la réponse de Steam ou au redémarrage.";
             this._CallbackTimer.Enabled = true;
@@ -774,7 +782,7 @@ namespace SAM.Game
 
         private void OnStore(object sender, EventArgs e)
         {
-            if (_Demo || !_StatsReady || _ManualSaving || _QueueRunning || _SavingAchievement != null) return;
+            if (_Demo || !_StatsReady || _ManualSaving || _CartSaving || _QueueRunning || _SavingAchievement != null) return;
             this._StatisticsDataGridView.EndEdit();
             if (!this.ValidateChildren()) return;
             this.DisableInput();
