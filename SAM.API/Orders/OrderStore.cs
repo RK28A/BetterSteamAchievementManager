@@ -39,6 +39,9 @@ namespace SAM.API.Orders
                     if (cart.Version != 1 || cart.Games == null || cart.GameDelay == null || cart.Games.Any(g => g == null || g.GameId == 0 || g.Delay == null || g.Achievements == null || g.Achievements.Any(a => a == null || string.IsNullOrWhiteSpace(a.Id))))
                         throw new InvalidDataException("Le format du panier est invalide ou incompatible.");
                     cart.History ??= new();
+                    if (cart.ConcurrentGames < 2 || cart.ConcurrentGames > 5 || cart.SpacingMinutes < 1 || cart.SpacingMinutes > 60) throw new InvalidDataException("Configuration multitâche invalide.");
+                    if (cart.Checkpoint?.Parallel == true && (cart.Checkpoint.Lanes == null || cart.Checkpoint.Lanes.Any(l => l == null || double.IsNaN(l.RemainingSeconds) || double.IsInfinity(l.RemainingSeconds) || l.RemainingSeconds < 0 || l.RemainingSeconds > TimeSpan.FromDays(60).TotalSeconds) || double.IsNaN(cart.Checkpoint.GlobalRemainingSeconds) || double.IsInfinity(cart.Checkpoint.GlobalRemainingSeconds) || cart.Checkpoint.GlobalRemainingSeconds < 0 || cart.Checkpoint.GlobalRemainingSeconds > 3600))
+                        throw new InvalidDataException("Point de reprise multitâche invalide.");
                     if (cart.Checkpoint != null && (double.IsNaN(cart.Checkpoint.RemainingSeconds) || double.IsInfinity(cart.Checkpoint.RemainingSeconds) || cart.Checkpoint.RemainingSeconds < 0 || cart.Checkpoint.RemainingSeconds > TimeSpan.FromDays(30).TotalSeconds))
                         throw new InvalidDataException("Le point de reprise est invalide.");
                     try { cart.GameDelay.Sample(0); foreach (var game in cart.Games) game.Delay.Sample(0); }

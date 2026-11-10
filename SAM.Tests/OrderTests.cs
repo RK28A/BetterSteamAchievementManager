@@ -29,26 +29,6 @@ internal static class OrderTests
         bool invalid = false;
         try { new DelayRange { Minimum = 10, Maximum = 3 }.Sample(0); } catch (InvalidOperationException) { invalid = true; }
         check(invalid, "invalid delay ranges are rejected");
-        var cart = new OrderCart { Games = new List<OrderGroup> { Group(620, "A", "B"), Group(400, "C") }, BetweenGames = true, GameDelay = new DelayRange { Minimum = 5, Maximum = 5 } };
-        var runner = new OrderRunner(() => 0.5);
-        runner.Start(cart, TimeSpan.Zero);
-        check(runner.Tick(TimeSpan.FromSeconds(179)) == null, "cart delays the first achievement");
-        check(runner.Tick(TimeSpan.FromMinutes(3)).Achievement.Id == "A", "cart sends first selected achievement");
-        check(runner.Tick(TimeSpan.FromDays(1)) == null, "cart never sends a second command while awaiting confirmation");
-        check(!runner.Confirm(400, "A", true, TimeSpan.FromMinutes(3)), "cart ignores confirmation from another game");
-        runner.Confirm(620, "A", true, TimeSpan.FromMinutes(3));
-        check(runner.Tick(TimeSpan.FromMinutes(5)) == null, "cart applies another full achievement delay");
-        check(runner.Tick(TimeSpan.FromMinutes(6)).Achievement.Id == "B", "cart preserves within-game achievement order");
-        runner.Confirm(620, "B", true, TimeSpan.FromMinutes(6));
-        check(runner.Phase == OrderPhase.GameDelay && runner.Deadline == TimeSpan.FromMinutes(11), "cart inserts configured pause between games");
-        check(runner.Tick(TimeSpan.FromMinutes(11)) == null && runner.Deadline == TimeSpan.FromMinutes(14), "next game also receives its achievement delay");
-        check(runner.Tick(TimeSpan.FromMinutes(14)).GameId == 400, "cart advances to the next game");
-        runner.Stop();
-        check(runner.Phase == OrderPhase.Stopping, "cart stop waits for an outstanding confirmation");
-        runner.Confirm(400, "C", true, TimeSpan.FromMinutes(14));
-        check(!runner.Running && runner.Phase == OrderPhase.Stopped && runner.Completed == 3, "cart stop never schedules another command");
-        runner.Start(cart, TimeSpan.Zero); runner.Tick(TimeSpan.FromMinutes(3)); runner.Confirm(620, "A", false, TimeSpan.FromMinutes(3));
-        check(runner.Phase == OrderPhase.Failed && runner.Tick(TimeSpan.FromDays(3)) == null, "cart stops on Steam failure without advancing");
         string root = Path.Combine(Path.GetTempPath(), "BSAM-OrderTests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try

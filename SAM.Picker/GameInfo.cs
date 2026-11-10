@@ -40,6 +40,7 @@ namespace SAM.Picker
             set => this._Name = value ?? "App " + this.Id.ToString(CultureInfo.InvariantCulture);
         }
 
+        public override string ToString() => Name;
         public string ImageUrl;
 
         public ListViewItem Item;

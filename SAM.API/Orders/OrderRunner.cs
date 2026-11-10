@@ -1,102 +1,84 @@
-// Pure state machine: at most one outstanding Steam command, using a monotonic clock supplied by the UI.
+// Immediate dispatch: one Steam write at a time, optionally alternating 2–5 prepared games.
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace SAM.API.Orders
 {
-    internal enum OrderPhase { Idle, AchievementDelay, GameDelay, Confirmation, Pausing, Paused, Stopping, Stopped, Completed, Failed }
+    internal enum OrderPhase { Idle, Ready, Confirmation, Pausing, Paused, Stopping, Stopped, Completed, Failed }
     internal sealed class OrderRunner
     {
-        private List<OrderStep> _Steps = new();
-        private int _Index;
-        private bool _BetweenGames;
-        private DelayRange _GameDelay;
-        private readonly Func<double> _Random;
-        private TimeSpan _PausedRemaining;
-        private OrderPhase _PausedPhase;
+        private sealed class Lane
+        {
+            internal OrderGroup Group;
+            internal Queue<OrderStep> Steps;
+        }
+        private readonly List<Lane> _Active = new();
+        private readonly Queue<OrderGroup> _Waiting = new();
+        private int _Cursor, _Limit;
+        private bool _Parallel;
         internal OrderPhase Phase { get; private set; }
-        internal TimeSpan Deadline { get; private set; }
-        internal OrderStep Current => _Index < _Steps.Count ? _Steps[_Index] : null;
+        internal OrderStep Current => _Active.Count == 0 ? null : _Active[_Cursor].Steps.Peek();
         internal int Completed { get; private set; }
-        internal int Total => _Steps.Count;
-        internal bool Running => Phase == OrderPhase.AchievementDelay || Phase == OrderPhase.GameDelay || Phase == OrderPhase.Confirmation || Phase == OrderPhase.Pausing || Phase == OrderPhase.Stopping;
-        internal OrderRunner(Func<double> random = null) { _Random = random ?? new Random().NextDouble; }
+        internal int Total { get; private set; }
+        internal bool Running => Phase == OrderPhase.Ready || Phase == OrderPhase.Confirmation || Phase == OrderPhase.Pausing || Phase == OrderPhase.Stopping;
+        internal IEnumerable<OrderGroup> ActiveGroups => _Active.Select(l => l.Group);
+        internal OrderRunner() { }
         internal void Start(OrderCart cart, TimeSpan now)
         {
             if (Running) throw new InvalidOperationException("Une commande est déjà en cours.");
-            _Steps = cart.Games.SelectMany(g => g.Achievements.Select(a => new OrderStep { GameId = g.GameId, GameName = g.Name, Achievement = a, Delay = g.Delay.Copy() })).ToList();
-            if (_Steps.Count == 0) throw new InvalidOperationException("Le panier est vide.");
-            foreach (var step in _Steps) step.Delay.Sample(0);
-            cart.GameDelay.Sample(0);
-            _Index = Completed = 0;
-            _BetweenGames = cart.BetweenGames;
-            _GameDelay = cart.GameDelay.Copy();
-            Phase = OrderPhase.AchievementDelay;
-            Deadline = now + Current.Delay.Sample(_Random());
-            var saved = cart.Checkpoint;
-            if (saved != null && saved.GameId == Current.GameId && saved.AchievementId == Current.Achievement.Id &&
-                !double.IsNaN(saved.RemainingSeconds) && !double.IsInfinity(saved.RemainingSeconds) && saved.RemainingSeconds >= 0 && saved.RemainingSeconds <= TimeSpan.FromDays(30).TotalSeconds)
+            if (cart.ConcurrentGames < 2 || cart.ConcurrentGames > 5) throw new InvalidOperationException("Choisissez entre 2 et 5 jeux.");
+            _Active.Clear(); _Waiting.Clear(); _Cursor = Completed = Total = 0;
+            _Parallel = cart.Parallel; _Limit = cart.Parallel ? cart.ConcurrentGames : 1;
+            foreach (var group in cart.Games)
             {
-                Phase = saved.BetweenGames ? OrderPhase.GameDelay : OrderPhase.AchievementDelay;
-                Deadline = now + TimeSpan.FromSeconds(saved.RemainingSeconds);
+                var remaining = group.Achievements.Where(a => a.Status != "done").ToList();
+                if (remaining.Count == 0) continue;
+                _Waiting.Enqueue(new OrderGroup { GameId = group.GameId, Name = group.Name, ImageUrl = group.ImageUrl, Achievements = remaining });
+                Total += remaining.Count;
             }
+            if (Total == 0) throw new InvalidOperationException("Le panier ne contient aucun succès en attente.");
+            while (_Active.Count < _Limit && _Waiting.Count > 0) AddLane();
+            if (cart.Checkpoint != null)
+            {
+                int restored = _Active.FindIndex(l => l.Group.GameId == cart.Checkpoint.GameId && l.Steps.Peek().Achievement.Id == cart.Checkpoint.AchievementId);
+                if (restored >= 0) _Cursor = restored;
+            }
+            Phase = OrderPhase.Ready;
         }
-        internal OrderCheckpoint Snapshot(TimeSpan now)
+        private void AddLane()
         {
-            if (Current == null || Phase == OrderPhase.Completed || Phase == OrderPhase.Idle) return null;
-            var phase = Phase == OrderPhase.Paused ? _PausedPhase : Phase;
-            var remaining = Phase == OrderPhase.Paused ? _PausedRemaining : Deadline - now;
-            return new OrderCheckpoint { GameId = Current.GameId, AchievementId = Current.Achievement.Id,
-                BetweenGames = phase == OrderPhase.GameDelay,
-                RemainingSeconds = phase == OrderPhase.Confirmation || phase == OrderPhase.Pausing || phase == OrderPhase.Stopping ? 0 : Math.Max(0, remaining.TotalSeconds) };
-        }
-        internal void Pause(TimeSpan now)
-        {
-            if (Phase == OrderPhase.Confirmation) { Phase = OrderPhase.Pausing; return; }
-            if (Phase != OrderPhase.AchievementDelay && Phase != OrderPhase.GameDelay) return;
-            _PausedPhase = Phase;
-            _PausedRemaining = Deadline > now ? Deadline - now : TimeSpan.Zero;
-            Phase = OrderPhase.Paused;
+            var group = _Waiting.Dequeue();
+            _Active.Add(new Lane { Group = group, Steps = new Queue<OrderStep>(group.Achievements.Select(a => new OrderStep { GameId = group.GameId, GameName = group.Name, Achievement = a })) });
         }
         internal OrderStep Tick(TimeSpan now)
         {
-            if (now < Deadline) return null;
-            if (Phase == OrderPhase.GameDelay)
-            {
-                Phase = OrderPhase.AchievementDelay;
-                Deadline = now + Current.Delay.Sample(_Random());
-                return null;
-            }
-            if (Phase != OrderPhase.AchievementDelay) return null;
-            Phase = OrderPhase.Confirmation;
-            return Current;
+            if (Phase != OrderPhase.Ready) return null;
+            Phase = OrderPhase.Confirmation; return Current;
         }
         internal bool Confirm(uint gameId, string achievementId, bool success, TimeSpan now)
         {
             if ((Phase != OrderPhase.Confirmation && Phase != OrderPhase.Pausing && Phase != OrderPhase.Stopping) || Current == null || Current.GameId != gameId || Current.Achievement.Id != achievementId) return false;
             if (!success) { Phase = OrderPhase.Failed; return true; }
-            Completed++;
-            bool stop = Phase == OrderPhase.Stopping;
-            bool pause = Phase == OrderPhase.Pausing;
-            uint previous = Current.GameId;
-            _Index++;
-            if (stop) Phase = OrderPhase.Stopped;
-            else if (_Index == _Steps.Count) Phase = OrderPhase.Completed;
-            else
+            bool pause = Phase == OrderPhase.Pausing, stop = Phase == OrderPhase.Stopping;
+            Completed++; _Active[_Cursor].Steps.Dequeue();
+            if (_Active[_Cursor].Steps.Count == 0)
             {
-                bool newGame = _BetweenGames && previous != Current.GameId;
-                Phase = newGame ? OrderPhase.GameDelay : OrderPhase.AchievementDelay;
-                Deadline = now + (newGame ? _GameDelay : Current.Delay).Sample(_Random());
-                if (pause) Pause(now);
+                _Active.RemoveAt(_Cursor);
+                if (_Waiting.Count > 0) AddLane();
+                if (_Cursor >= _Active.Count) _Cursor = 0;
             }
+            else if (_Active.Count > 1) _Cursor = (_Cursor + 1) % _Active.Count;
+            Phase = stop ? OrderPhase.Stopped : _Active.Count == 0 ? OrderPhase.Completed : pause ? OrderPhase.Paused : OrderPhase.Ready;
             return true;
         }
-        internal void Stop()
+        internal void Pause(TimeSpan now)
         {
-            if (Phase == OrderPhase.Confirmation || Phase == OrderPhase.Pausing) Phase = OrderPhase.Stopping;
-            else if (Phase != OrderPhase.Stopping) Phase = OrderPhase.Stopped;
+            if (Phase == OrderPhase.Confirmation) Phase = OrderPhase.Pausing;
+            else if (Phase == OrderPhase.Ready) Phase = OrderPhase.Paused;
         }
+        internal void Stop() { Phase = Phase == OrderPhase.Confirmation || Phase == OrderPhase.Pausing ? OrderPhase.Stopping : OrderPhase.Stopped; }
         internal void Fail() { Phase = OrderPhase.Failed; }
+        internal OrderCheckpoint Snapshot(TimeSpan now) => Current == null || Phase == OrderPhase.Idle ? null : new OrderCheckpoint { GameId = Current.GameId, AchievementId = Current.Achievement.Id, Parallel = _Parallel };
     }
 }

@@ -9,18 +9,25 @@ namespace SAM.UI
 {
     internal static class SteamTheme
     {
-        public static readonly Color Background = Color.FromArgb(27, 32, 40);
-        public static readonly Color Sidebar = Color.FromArgb(32, 39, 49);
-        public static readonly Color Surface = Color.FromArgb(38, 49, 62);
-        public static readonly Color Text = Color.FromArgb(221, 229, 237);
-        public static readonly Color Muted = Color.FromArgb(145, 163, 181);
-        public static readonly Color Accent = Color.FromArgb(102, 192, 244);
-        public static readonly Color Blue = Color.FromArgb(39, 115, 168);
-        public static readonly Color Green = Color.FromArgb(162, 209, 100);
+        public static readonly Color Background = Color.FromArgb(15, 17, 24);
+        public static readonly Color Sidebar = Color.FromArgb(20, 23, 32);
+        public static readonly Color Surface = Color.FromArgb(29, 33, 46);
+        public static readonly Color Text = Color.FromArgb(236, 237, 245);
+        public static readonly Color Muted = Color.FromArgb(142, 148, 171);
+        public static readonly Color Accent = Color.FromArgb(174, 165, 255);
+        public static readonly Color Blue = Color.FromArgb(110, 91, 231);
+        public static readonly Color Green = Color.FromArgb(91, 212, 173);
 
         [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] private static extern int SetWindowTheme(IntPtr window, string app, string sub);
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Control, object> Themed = new();
+        public static GraphicsPath Rounded(Rectangle rect, int radius = 10)
+        {
+            var path = new GraphicsPath(); int d = Math.Min(radius * 2, Math.Min(rect.Width, rect.Height));
+            if (d <= 0) return path;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90); path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90); path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90); path.CloseFigure(); return path;
+        }
         public static void DrawCheck(Graphics graphics, Rectangle bounds, bool selected, bool enabled)
         {
             using var fill = new SolidBrush(selected && enabled ? Blue : Sidebar);
@@ -63,8 +70,8 @@ namespace SAM.UI
             {
                 b.FlatStyle = FlatStyle.Flat;
                 b.FlatAppearance.BorderSize = 0;
-                b.BackColor = Surface;
-                b.Padding = new Padding(10, 5, 10, 5);
+                b.BackColor = Equals(b.Tag, "primary") ? Blue : Surface;
+                b.Padding = new Padding(12, 6, 12, 6);
                 b.Cursor = Cursors.Hand;
                 b.FlatAppearance.MouseOverBackColor = Blue;
                 b.FlatAppearance.MouseDownBackColor = Sidebar;
@@ -158,7 +165,7 @@ namespace SAM.UI
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             if (Width <= 0 || Height <= 0) return;
-            using var fill = new LinearGradientBrush(ClientRectangle, Color.FromArgb(40, 69, 89), SteamTheme.Background, 15F);
+            using var fill = new LinearGradientBrush(ClientRectangle, Color.FromArgb(29, 28, 47), SteamTheme.Background, 15F);
             e.Graphics.FillRectangle(fill, ClientRectangle);
         }
     }

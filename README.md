@@ -1,6 +1,6 @@
 # BetterSteamAchievementManager
 
-Une bibliothèque de succès avec une interface sombre inspirée de Steam : jeux à gauche, succès en cartes à droite et panier multi-jeux **Achievement Order**.
+Une bibliothèque de succès avec une interface graphite et violette, un panier multi-jeux et des sessions **GameTime Spoofer**.
 
 [**Télécharger la dernière version**](https://github.com/RK28A/BetterSteamAchievementManager/releases/latest)
 
@@ -8,50 +8,47 @@ Une bibliothèque de succès avec une interface sombre inspirée de Steam : jeux
 
 Windows, **.NET Framework 4.8**, Steam ouvert et un compte connecté.
 
-- **BetterSteamAchievementManager.exe** : un seul fichier à télécharger. Il extrait automatiquement l’application dans `%LOCALAPPDATA%\BetterSteamAchievementManager` et la lance.
-- **ZIP portable** : extraire tous les fichiers ensemble, puis lancer `SAM.Picker.exe`.
+- **BetterSteamAchievementManager.exe** : un seul fichier à télécharger ; l’application extrait ses composants dans `%LOCALAPPDATA%\BetterSteamAchievementManager`.
+- **ZIP portable** : extraire tous les fichiers ensemble et lancer `SAM.Picker.exe`.
 
-La barre de fenêtre est intégrée au thème : déplacer, réduire, agrandir et fermer. Les sommes SHA-256 sont disponibles dans chaque Release.
+## Bibliothèque et succès
 
-## Bibliothèque
+Les jeux restent à gauche, avec recherche, favoris, filtre des jeux installés et progression connue. Ouvrez un jeu pour actualiser sa progression. Les cartes de succès affichent les images, descriptions et pourcentages mondiaux. Le tri se trouve à droite : nom, rareté, état ou déblocage récent.
 
-Les jeux sont à gauche. **★ Favoris** et **Installés** filtrent la liste et peuvent se combiner. Le bouton **☆ / ★**, le clic droit ou **Ctrl+D** ajoute ou retire le jeu sélectionné des favoris. Les favoris et filtres sont conservés après fermeture.
+Le menu **Sélection** propose Tout sélectionner, Tout désélectionner, Inverser et Non débloqués. **Débloquer** et **Verrouiller** préparent des modifications ; **Enregistrer les modifications** les transmet à Steam. **Annuler** rétablit les valeurs chargées. L’édition des statistiques, l’ajout par App ID et les paramètres restent disponibles.
 
-Chaque jeu affiche sa dernière progression connue. Elle est mise à jour à l’ouverture de sa vue et après une actualisation Steam ; **—** signifie qu’aucune progression n’a encore été chargée. Le bouton d’actualisation vérifie aussi les jeux installés.
+Les images visibles sont chargées en priorité, avec quatre téléchargements simultanés et déduplication des demandes. Un cache local partagé les réutilise entre les vues et les ouvertures. Le cache disque est limité à environ 256 Mo lors du nettoyage au démarrage ; les images décodées en mémoire sont également limitées. Un fichier image corrompu est retéléchargé. Les schémas de succès inchangés sont réutilisés lors des actualisations.
 
-## Succès
+## Achievement Order : déblocage immédiat
 
-Sélectionnez un jeu, puis ses succès. Les boutons permettent de tout sélectionner, tout désélectionner, inverser ou sélectionner les succès non débloqués. La recherche, les filtres et le tri conservent les sélections et les modifications en attente.
+1. Sélectionnez des succès, puis **+ Ajouter au panier**. Répétez pour les jeux souhaités.
+2. Ouvrez **Achievement Order**. Réorganisez les jeux et les succès par glisser-déposer ou avec Monter / Descendre.
+3. Activez au besoin **Préparer plusieurs jeux**, de **2 à 5**. Le panier alterne alors les jeux préparés.
+4. Cliquez sur **Démarrer**.
 
-Le menu **Trier**, dans le panneau de droite, propose le nom, les plus rares, les plus courants, les non débloqués et les déblocages récents. Les cartes affichent le pourcentage mondial fourni par Steam ; les données indisponibles restent en fin de tri par rareté. Une connexion est nécessaire pour charger ces pourcentages.
+**Aucun délai de déblocage n’est ajouté. Un seul succès est envoyé à la fois, et le suivant attend la confirmation Steam.** La préparation parallèle ne produit pas d’envois simultanés. Les anciens délais enregistrés sont ignorés ; l’ancien onglet de déblocage progressif a été retiré.
 
-**Débloquer** et **Verrouiller** préparent des changements ; **Enregistrer les modifications** les envoie à Steam. **Annuler** rétablit les valeurs chargées. Les statistiques, filtres de jeux, ajout par App ID, actualisation et réinitialisation restent disponibles.
+L’état Steam est relu avant chaque envoi. Les succès déjà obtenus sont ignorés, les doublons exclus et les succès protégés restent en lecture seule. Enregistrez ou annulez vos changements manuels avant de démarrer le panier.
 
-## Achievement Order
+**Pause**, **Reprendre** et **Arrêter** conservent les succès confirmés. Une pause ou un arrêt attend la réponse d’un envoi déjà parti. Après une fermeture complète, la reprise est manuelle. Les erreurs ou résultats incertains arrêtent le traitement ; l’historique conserve les 2 000 derniers événements.
 
-1. Sélectionnez les succès souhaités d’un jeu et cliquez sur **+ Achievement Order**.
-2. Répétez pour vos autres jeux, puis ouvrez **Achievement Order** en haut de la bibliothèque.
-3. Sélectionnez un jeu dans le panier. Réglez ses délais minimum et maximum avec les sliders et choisissez **minutes, heures ou jours**. Par défaut : **3 à 10 minutes** entre ses succès.
-4. Activez au besoin **Pause entre les jeux**, avec ses propres bornes et son unité. Cette pause s’ajoute au délai avant le premier succès du jeu suivant.
-5. Glissez-déposez les en-têtes pour déplacer les jeux entiers, ou les succès pour changer leur ordre à l’intérieur de leur jeu. Les boutons **Monter**, **Descendre**, **Retirer** et **Vider** restent disponibles. Vérifiez le planning puis cliquez sur **Démarrer**.
+## GameTime Spoofer
 
-Le panier regroupe les jeux et leurs succès avec leurs images, exclut les doublons et les succès protégés ou déjà obtenus au moment de l’ajout. Il est enregistré automatiquement. Un seul succès est envoyé à la fois ; la commande attend la confirmation de Steam avant de poursuivre. L’état Steam est relu avant chaque envoi, y compris à la reprise : un succès déjà obtenu est ignoré sans nouvelle écriture.
+Sélectionnez les jeux de votre bibliothèque, choisissez une durée en **minutes, heures ou jours**, puis démarrez. Avec **Durée aléatoire**, chaque jeu reçoit une durée indépendante entre vos bornes. Sans cette option, la durée choisie est fixe.
 
-Le planning affiche la durée restante minimum/maximum et une fourchette de fin estimée, hors réponses Steam et pauses manuelles. Les délais de chaque succès et les pauses entre jeux sont inclus.
+Jusqu’à **10 sessions** peuvent fonctionner simultanément. Chaque session affiche son état et le temps restant, s’arrête automatiquement à son échéance et peut être arrêtée séparément ou avec **Tout arrêter**. Une nouvelle session ne duplique pas une session déjà active du même jeu.
 
-**Pause** sauvegarde le délai restant. Si un envoi est déjà parti, la pause attend sa confirmation. **Reprendre** continue avec ce délai, y compris après avoir fermé puis rouvert l’application. Le temps hors ligne ne raccourcit pas l’attente. Une modification du panier ou de ses délais annule ce point de reprise et recalcule le planning. Une fermeture brutale peut conserver jusqu’à une seconde d’attente supplémentaire.
+Il s’agit de sessions Steam utilisant les App ID, sans lancement des exécutables des jeux. Le minuteur ferme uniquement ses propres sessions : une vue de succès ouverte peut maintenir le jeu actif. **Le temps crédité et son cumul entre plusieurs jeux sont déterminés par Steam, sans garantie de correspondance avec la durée affichée.** GameTime ne reprend pas automatiquement après une fermeture complète de l’application.
 
-**Arrêter** remet le délai à zéro pour un prochain démarrage et annule les envois futurs ; un envoi déjà parti attend sa confirmation. Le panier ne reprend jamais automatiquement au démarrage. Les éléments terminés restent visibles et ne sont pas renvoyés au prochain départ. Les modifications du panier sont bloquées pendant son exécution. En cas d’erreur ou d’absence de confirmation, la commande s’arrête ; vérifiez la vue du jeu avant de réessayer.
+## Arrière-plan Windows
 
-L’ancienne file par jeu reste dans **Déblocage progressif**. Enregistrez ou annulez les modifications manuelles d’un jeu avant de l’utiliser dans une commande. Gardez Steam et la bibliothèque ouverts pendant l’exécution.
+La **croix masque la fenêtre dans la zone de notification**, près de l’horloge. Les commandes du panier et GameTime continuent tant que Windows et Steam restent actifs.
 
-## Historique
+Double-cliquez sur l’icône pour rouvrir la même fenêtre. Le menu **Quitter complètement** arrête les sessions GameTime et ferme l’application, après confirmation si des vues ou sessions sont ouvertes. En veille ou à l’arrêt du PC, les tâches ne peuvent pas s’exécuter.
 
-Le bouton **Historique** affiche les démarrages, pauses, reprises, confirmations Steam, erreurs et fins de commande, avec le jeu, le succès et l’heure locale. Les 2 000 derniers événements sont conservés dans le panier local. Un résultat incertain reste signalé comme erreur ; il n’est pas présenté comme un succès confirmé.
+## Dates des succès
 
-## Statut Steam et temps de jeu
-
-Ouvrir une vue de jeu crée une session Steam pour son App ID, sans lancer son exécutable. Steam peut alors afficher le compte « en jeu ». Plusieurs vues peuvent rester ouvertes simultanément. **Valider des succès n’ajoute pas une durée de jeu précise** : le temps enregistré est déterminé par Steam, et son cumul pour plusieurs sessions simultanées n’est pas garanti par cette application.
+L’application ne change pas l’horloge Windows et ne promet pas de dates de déblocage rétroactives. L’API Steam permet de lire les dates mais ne fournit pas de paramètre pour les choisir. [Précision de l’auteur de SAM](https://github.com/gibbed/SteamAchievementManager/issues/534).
 
 ## Build et Releases
 
@@ -61,10 +58,10 @@ dotnet build SAM.Tests/SAM.Tests.csproj -c Release -p:Platform=x86
 dotnet build SAM.Launcher/SAM.Launcher.csproj -c Release -p:Platform=x86
 ```
 
-Le workflow **Windows build** compile, exécute les tests Windows hors ligne, vérifie le `.exe` unique et fournit les captures dans ses artifacts. Un tag `v*` publie le `.exe`, le ZIP et les sommes SHA-256 dans une Release après réussite des tests. Les tests n’effectuent aucune écriture sur un compte Steam réel.
+Le workflow Windows compile, teste le cache, le panier, l’interface, l’hébergement et les sessions simulées, puis vérifie le `.exe` unique et sa réparation de cache. Un tag `v*` publie le `.exe`, le ZIP et les SHA-256 après réussite des tests. Ces tests ne modifient aucun compte Steam réel.
 
-`BetterSteamAchievementManager.exe --demo` ouvre une démonstration sans connexion Steam ni écriture de compte. Le panier de démonstration reste temporaire.
+`BetterSteamAchievementManager.exe --demo` ouvre la démonstration sans connexion Steam. GameTime y utilise des sessions simulées ; l’écriture des succès est désactivée.
 
-Code et mentions de licence d’origine conservés dans [LICENSE.txt](LICENSE.txt) et les fichiers sources. Les images des jeux et Steam appartiennent à leurs titulaires.
+Code et mentions d’origine conservés dans [LICENSE.txt](LICENSE.txt) et les sources. Les images des jeux appartiennent à leurs titulaires.
 
 Merci à [gibbed](https://github.com/gibbed/SteamAchievementManager) pour le projet original Steam Achievement Manager.
