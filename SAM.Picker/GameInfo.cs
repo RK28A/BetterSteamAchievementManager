@@ -30,6 +30,7 @@ namespace SAM.Picker
         private string _Name;
 
         public uint Id;
+        public bool Installed;
         public string Type;
         public int ImageIndex;
 

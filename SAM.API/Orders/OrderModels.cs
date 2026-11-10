@@ -42,10 +42,28 @@ namespace SAM.API.Orders
         public List<OrderGroup> Games { get; set; } = new();
         public bool BetweenGames { get; set; }
         public DelayRange GameDelay { get; set; } = new() { Minimum = 5, Maximum = 15 };
+        public OrderCheckpoint Checkpoint { get; set; }
+        public List<OrderHistoryEntry> History { get; set; } = new();
         public string ActiveRun { get; set; }
         public DateTime LeaseUntilUtc { get; set; }
         public bool IsRunning => !string.IsNullOrEmpty(ActiveRun) && LeaseUntilUtc > DateTime.UtcNow;
         public int Count => Games.Sum(g => g.Achievements.Count);
+    }
+    internal sealed class OrderCheckpoint
+    {
+        public uint GameId { get; set; }
+        public string AchievementId { get; set; }
+        public bool BetweenGames { get; set; }
+        public double RemainingSeconds { get; set; }
+    }
+    internal sealed class OrderHistoryEntry
+    {
+        public DateTime Utc { get; set; } = DateTime.UtcNow;
+        public string Event { get; set; }
+        public uint GameId { get; set; }
+        public string GameName { get; set; }
+        public string AchievementName { get; set; }
+        public string Detail { get; set; }
     }
     internal sealed class OrderCommand
     {

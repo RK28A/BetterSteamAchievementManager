@@ -74,6 +74,7 @@ namespace SAM.Picker
             SAM.UI.WindowChrome.Apply(this);
             this.InitializeOrderCart();
             this._SteamClient = client;
+            InitializeLibraryPreferences();
 
             this.FormClosing += this.OnLibraryClosing;
             if (demo) { this._CallbackTimer.Stop(); this.LoadDemoLibrary(); return; }
@@ -163,7 +164,7 @@ namespace SAM.Picker
             var wantJunk = this._FilterJunkMenuItem.Checked == true;
 
             this._FilteredGames.Clear();
-            foreach (var info in this._Games.Values.OrderBy(gi => gi.Name))
+            foreach (var info in this._Games.Values.OrderByDescending(gi => _LibraryPreferences.Favorites.Contains(gi.Id)).ThenBy(gi => gi.Name))
             {
                 if (nameSearch != null &&
                     info.Name.IndexOf(nameSearch, StringComparison.OrdinalIgnoreCase) < 0)
@@ -171,6 +172,8 @@ namespace SAM.Picker
                     continue;
                 }
 
+                if (_LibraryPreferences.FavoritesOnly && !_LibraryPreferences.Favorites.Contains(info.Id)) continue;
+                if (_LibraryPreferences.InstalledOnly && !info.Installed) continue;
                 bool wanted = info.Type switch
                 {
                     "normal" => wantNormals,
@@ -421,6 +424,7 @@ namespace SAM.Picker
 
             GameInfo info = new(id, type);
             info.Name = this._SteamClient.SteamApps001.GetAppData(info.Id, "name");
+            info.Installed = this._SteamClient.SteamApps008.IsAppInstalled(info.Id);
             this._Games.Add(id, info);
         }
 
@@ -464,6 +468,8 @@ namespace SAM.Picker
         private void OnRefresh(object sender, EventArgs e)
         {
             this._AddGameTextBox.Text = "";
+            foreach (var game in _Games.Values) game.Installed = _SteamClient.SteamApps008.IsAppInstalled(game.Id);
+            this.RefreshGames();
             this.AddGames();
         }
 
@@ -512,9 +518,19 @@ namespace SAM.Picker
             var game = this._FilteredGames[e.ItemIndex];
             if (game.ImageIndex >= 0 && game.ImageIndex < this._LogoImageList.Images.Count)
                 e.Graphics.DrawImage(this._LogoImageList.Images[game.ImageIndex], e.Bounds.Left + 10, e.Bounds.Top + 4, 40, 24);
-            var textRect = new Rectangle(e.Bounds.Left + 60, e.Bounds.Top, Math.Max(0, e.Bounds.Width - 68), e.Bounds.Height);
-            TextRenderer.DrawText(e.Graphics, game.Name, this.Font, textRect, selected ? SAM.UI.SteamTheme.Accent : SAM.UI.SteamTheme.Text,
+            var progress = _LibraryProgress.Games.FirstOrDefault(g => g.GameId == game.Id);
+            var textRect = new Rectangle(e.Bounds.Left + 60, e.Bounds.Top + 2, Math.Max(0, e.Bounds.Width - 68), 22);
+            string name = (_LibraryPreferences.Favorites.Contains(game.Id) ? "★ " : "") + game.Name;
+            TextRenderer.DrawText(e.Graphics, name, this.Font, textRect, selected ? SAM.UI.SteamTheme.Accent : SAM.UI.SteamTheme.Text,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            string detail = (game.Installed ? "Installé" : "Non installé") + (progress == null ? " · succès —" : $" · {progress.Unlocked}/{progress.Total}");
+            TextRenderer.DrawText(e.Graphics, detail, _LibraryDetailFont, new Rectangle(textRect.X, e.Bounds.Top + 25, textRect.Width, 18), SAM.UI.SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            if (progress != null && progress.Total > 0)
+            {
+                using var bg = new SolidBrush(SAM.UI.SteamTheme.Surface); using var fill = new SolidBrush(SAM.UI.SteamTheme.Accent);
+                var bar = new Rectangle(textRect.X, e.Bounds.Bottom - 4, textRect.Width, 2);
+                e.Graphics.FillRectangle(bg, bar); bar.Width = bar.Width * progress.Unlocked / progress.Total; e.Graphics.FillRectangle(fill, bar);
+            }
             if (this._Demo) return;
 
             if (e.Item.Bounds.IntersectsWith(this._GameListView.ClientRectangle) == false)

@@ -20,7 +20,7 @@ namespace SAM.Game
         {
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             DrawMode = DrawMode.OwnerDrawFixed;
-            ItemHeight = 106;
+            ItemHeight = 126;
             IntegralHeight = false;
             BorderStyle = BorderStyle.None;
             Dock = DockStyle.Fill;
@@ -79,9 +79,10 @@ namespace SAM.Game
             var description = new Rectangle(title.X, bounds.Y + 39, width, 22);
             TextRenderer.DrawText(e.Graphics, info.Description, Font, description, SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             string status = (info.Permission & 3) != 0 ? "PROTÉGÉ · lecture seule" : pending ? (info.Item.Checked ? "À DÉBLOQUER · en attente d’enregistrement" : "À VERROUILLER · en attente d’enregistrement") : info.IsAchieved ? "DÉBLOQUÉ" + (info.UnlockTime.HasValue ? " · " + info.UnlockTime.Value.ToString("g") : "") : "NON DÉBLOQUÉ";
-            TextRenderer.DrawText(e.Graphics, status, _SmallFont, new Rectangle(title.X, bounds.Y + 67, width, 20), pending ? SteamTheme.Accent : info.IsAchieved ? SteamTheme.Green : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            ControlPaint.DrawCheckBox(e.Graphics, new Rectangle(bounds.Right - 35, bounds.Top + 36, 18, 18),
-                (selected ? ButtonState.Checked : ButtonState.Normal) | ((info.Permission & 3) != 0 || !Enabled ? ButtonState.Inactive : ButtonState.Normal));
+            TextRenderer.DrawText(e.Graphics, status, _SmallFont, new Rectangle(title.X, bounds.Y + 90, width, 20), pending ? SteamTheme.Accent : info.IsAchieved ? SteamTheme.Green : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            string rarity = info.GlobalPercent.HasValue ? info.GlobalPercent.Value.ToString("0.0") + " % des joueurs ont débloqué ce succès" : "Rareté mondiale indisponible";
+            TextRenderer.DrawText(e.Graphics, rarity, _SmallFont, new Rectangle(title.X, bounds.Y + 66, width, 20), info.GlobalPercent < 10 ? SteamTheme.Accent : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            SteamTheme.DrawCheck(e.Graphics, new Rectangle(bounds.Right - 35, bounds.Top + 45, 18, 18), selected, (info.Permission & 3) == 0 && Enabled);
             if ((e.State & DrawItemState.Focus) != 0 && Focused) ControlPaint.DrawFocusRectangle(e.Graphics, bounds, SteamTheme.Accent, SteamTheme.Surface);
         }
         protected override void Dispose(bool disposing)

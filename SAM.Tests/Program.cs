@@ -112,6 +112,7 @@ internal static class Program
         try
         {
             OrderTests.Run(Check);
+            UpgradeTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
@@ -277,7 +278,26 @@ internal static class Program
                     var orderPanel = Field<Panel>(library, "_OrderPanel");
                     var hostPanel = Field<Panel>(library, "_GameHost");
                     Check(ChildWindowFromPointEx(hostPanel.Handle, new Point(20, 20), 1) == orderPanel.Handle, "cart is actually in front of embedded game windows");
+                    Check(Field<Label>(library, "_OrderEstimate").Text.Contains("Fin estimée"), "planning is visible inside the cart");
+                    Check(Field<SAM.Picker.OrderRows>(library, "_OrderRows").AllowDrop, "stopped cart exposes drag and drop");
+                    cartStore.Update(cart => SAM.API.Orders.OrderPlanning.Record(cart, "Succès", "Confirmé par Steam", new SAM.API.Orders.OrderStep { GameId = 620, GameName = "Portal 2", Achievement = new() { Id = "A", Name = "Meilleur ami de l’homme" } }));
+                    Invoke(library, "RefreshOrderCart");
+                    Check(Field<ListBox>(library, "_HistoryRows").Items.Count == 1, "history view shows persisted order events");
                     CaptureScreen(library, "test-results/achievement-order.png");
+                    Field<Panel>(library, "_HistoryPanel").BringToFront();
+                    CaptureScreen(library, "test-results/history.png");
+                    var preferences = Field<SAM.API.Orders.LibraryPreferences>(library, "_LibraryPreferences");
+                    library.ToggleFavorite(620);
+                    Check(preferences.Favorites.Contains(620) && Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames")[0].Id == 620, "favorite games are saved and placed first in the library");
+                    var filters = Field<ToolStrip>(library, "_LibraryFilters");
+                    ((ToolStripButton)filters.Items[1]).Checked = true;
+                    Check(Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames").Count == 2, "installed filter hides non-installed games");
+                    ((ToolStripButton)filters.Items[0]).Checked = true;
+                    Check(Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames").Count == 1, "favorite and installed library filters combine");
+                    Check(Field<SAM.API.Orders.JsonStore<SAM.API.Orders.LibraryPreferences>>(library, "_PreferencesStore").Read().Favorites.Contains(620), "favorites survive preference reload");
+                    Pump(2200);
+                    Check(Field<SAM.API.Orders.JsonStore<SAM.API.Orders.LibraryProgress>>(library, "_ProgressStore").Read().Games.Any(g => g.GameId == 620 && g.Unlocked == 2 && g.Total == 7), "library receives confirmed achievement progress from its game process");
+                    CaptureScreen(library, "test-results/library-favorites.png");
                 }
                 finally
                 {

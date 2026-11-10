@@ -38,6 +38,9 @@ namespace SAM.API.Orders
                 {
                     if (cart.Version != 1 || cart.Games == null || cart.GameDelay == null || cart.Games.Any(g => g == null || g.GameId == 0 || g.Delay == null || g.Achievements == null || g.Achievements.Any(a => a == null || string.IsNullOrWhiteSpace(a.Id))))
                         throw new InvalidDataException("Le format du panier est invalide ou incompatible.");
+                    cart.History ??= new();
+                    if (cart.Checkpoint != null && (double.IsNaN(cart.Checkpoint.RemainingSeconds) || double.IsInfinity(cart.Checkpoint.RemainingSeconds) || cart.Checkpoint.RemainingSeconds < 0 || cart.Checkpoint.RemainingSeconds > TimeSpan.FromDays(30).TotalSeconds))
+                        throw new InvalidDataException("Le point de reprise est invalide.");
                     try { cart.GameDelay.Sample(0); foreach (var game in cart.Games) game.Delay.Sample(0); }
                     catch (InvalidOperationException e) { throw new InvalidDataException("Les délais du panier sont invalides.", e); }
                 }
@@ -67,6 +70,7 @@ namespace SAM.API.Orders
             store.Update(cart =>
             {
                 EnsureEditable(cart);
+                cart.Checkpoint = null;
                 var group = cart.Games.FirstOrDefault(g => g.GameId == incoming.GameId);
                 if (group == null) { group = new OrderGroup { GameId = incoming.GameId, Name = incoming.Name, ImageUrl = incoming.ImageUrl }; cart.Games.Add(group); }
                 foreach (var achievement in incoming.Achievements)

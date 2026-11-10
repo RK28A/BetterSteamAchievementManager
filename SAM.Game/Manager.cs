@@ -443,6 +443,7 @@ namespace SAM.Game
         private void RefreshStats()
         {
             if (_Demo) return;
+            LoadRarity();
             this.DisableInput();
             this._IconQueue.Clear();
 
@@ -492,6 +493,7 @@ namespace SAM.Game
                 Stats.AchievementInfo info = new()
                 {
                     Id = def.Id,
+                    GlobalPercent = _Rarity.TryGetValue(def.Id, out double percent) ? percent : null,
                     IsAchieved = isAchieved,
                     UnlockTime = isAchieved == true && unlockTime > 0
                         ? DateTimeOffset.FromUnixTimeSeconds(unlockTime).LocalDateTime
@@ -538,6 +540,7 @@ namespace SAM.Game
 
             this._Cards.SelectedIds.IntersectWith(this._AchievementDefinitions.Select(d => d.Id));
             this.RefilterCards();
+            this.PublishLibraryProgress();
             this.DownloadNextIcon();
         }
 

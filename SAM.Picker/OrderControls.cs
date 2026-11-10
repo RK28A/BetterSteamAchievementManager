@@ -11,9 +11,9 @@ namespace SAM.Picker
 {
     internal sealed class RangeEditor : UserControl
     {
-        private readonly ComboBox _Unit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 105 };
-        private readonly TrackBar _Min = new() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
-        private readonly TrackBar _Max = new() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
+        private readonly ComboBox _Unit = new SteamComboBox() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 105 };
+        private readonly TrackBar _Min = new SteamSlider() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
+        private readonly TrackBar _Max = new SteamSlider() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
         private readonly Label _Label;
         private bool _Binding;
         internal event EventHandler Edited;
@@ -99,10 +99,66 @@ namespace SAM.Picker
         }
         private readonly OrderArtwork _Art = new();
         private readonly Font _Title = new("Segoe UI", 11, FontStyle.Bold);
+        private Point _DragOrigin;
+        private Row _DragRow;
+        private int _DropIndex = -1;
+        private bool _DropAfter;
+        private DateTime _LastDragScroll;
+        internal bool ReorderEnabled = true;
+        internal event Action<Row, Row, bool> MoveRequested;
         internal OrderRows()
         {
             DrawMode = DrawMode.OwnerDrawFixed; ItemHeight = 88; IntegralHeight = false; BorderStyle = BorderStyle.None; Dock = DockStyle.Fill;
             _Art.Loaded += (_, _) => Invalidate();
+            AllowDrop = true;
+        }
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            int index = IndexFromPoint(e.Location);
+            _DragOrigin = e.Location;
+            _DragRow = e.Button == MouseButtons.Left && index >= 0 ? (Row)Items[index] : null;
+        }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            var threshold = new Rectangle(_DragOrigin.X - SystemInformation.DragSize.Width / 2, _DragOrigin.Y - SystemInformation.DragSize.Height / 2, SystemInformation.DragSize.Width, SystemInformation.DragSize.Height);
+            if (ReorderEnabled && e.Button == MouseButtons.Left && _DragRow != null && !threshold.Contains(e.Location))
+            {
+                var row = _DragRow; _DragRow = null;
+                DoDragDrop(row, DragDropEffects.Move);
+                _DropIndex = -1; Invalidate();
+            }
+        }
+        protected override void OnDragOver(DragEventArgs e)
+        {
+            base.OnDragOver(e);
+            var point = PointToClient(new Point(e.X, e.Y));
+            var source = e.Data.GetData(typeof(Row)) as Row;
+            int index = IndexFromPoint(point);
+            var target = index >= 0 ? (Row)Items[index] : null;
+            bool valid = ReorderEnabled && source != null && target != null && source != target &&
+                (source.Achievement == null ? source.Game.GameId != target.Game.GameId : source.Game.GameId == target.Game.GameId);
+            e.Effect = valid ? DragDropEffects.Move : DragDropEffects.None;
+            _DropIndex = valid ? index : -1;
+            _DropAfter = valid && point.Y > GetItemRectangle(index).Top + ItemHeight / 2;
+            if ((DateTime.UtcNow - _LastDragScroll).TotalMilliseconds > 100 && Items.Count > 0)
+            {
+                if (point.Y < 30 && TopIndex > 0) TopIndex--;
+                if (point.Y > ClientSize.Height - 30 && TopIndex < Items.Count - 1) TopIndex++;
+                _LastDragScroll = DateTime.UtcNow;
+            }
+            Invalidate();
+        }
+        protected override void OnDragEnter(DragEventArgs e) => OnDragOver(e);
+        protected override void OnDragLeave(EventArgs e) { base.OnDragLeave(e); _DropIndex = -1; Invalidate(); }
+        protected override void OnDragDrop(DragEventArgs e)
+        {
+            base.OnDragDrop(e);
+            var source = e.Data.GetData(typeof(Row)) as Row;
+            if (ReorderEnabled && source != null && _DropIndex >= 0 && _DropIndex < Items.Count)
+                MoveRequested?.Invoke(source, (Row)Items[_DropIndex], _DropAfter);
+            _DropIndex = -1; Invalidate();
         }
         internal void Bind(OrderCart cart)
         {
@@ -136,6 +192,12 @@ namespace SAM.Picker
             TextRenderer.DrawText(e.Graphics, header ? row.Game.Name : row.Achievement.Name, _Title, new Rectangle(x, rect.Y + 14, Math.Max(0, rect.Right - x - 12), 25), SteamTheme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             string detail = header ? row.Game.Achievements.Count + " succès · régler les délais à droite" : row.Achievement.Status == "done" ? "DÉBLOQUÉ" : row.Achievement.Status == "sending" ? "CONFIRMATION STEAM…" : row.Achievement.Status == "failed" ? "ARRÊT SUR ERREUR" : "EN ATTENTE";
             TextRenderer.DrawText(e.Graphics, detail, Font, new Rectangle(x, rect.Y + 46, Math.Max(0, rect.Right - x - 12), 22), row.Achievement?.Status == "done" ? SteamTheme.Green : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            if (e.Index == _DropIndex)
+            {
+                using var line = new Pen(SteamTheme.Accent, 3);
+                int y = _DropAfter ? e.Bounds.Bottom - 2 : e.Bounds.Top + 1;
+                e.Graphics.DrawLine(line, 4, y, ClientSize.Width - 8, y);
+            }
         }
         protected override void Dispose(bool disposing) { if (disposing) { _Art.Dispose(); _Title.Dispose(); } base.Dispose(disposing); }
     }

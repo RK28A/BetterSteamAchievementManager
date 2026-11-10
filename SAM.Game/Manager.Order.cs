@@ -12,7 +12,7 @@ namespace SAM.Game
         private JsonStore<OrderCommand> _OrderCommands;
         private string _CartCommandId;
         private bool _CartSaving, _CartTimeoutReported;
-        private string _CartAchievementId;
+        private string _CartAchievementId, _RefreshedOrderCommand;
         private bool _Embedded;
         private readonly System.Diagnostics.Stopwatch _CartConfirmationClock = new();
 
@@ -60,6 +60,14 @@ namespace SAM.Game
                 if (_AwaitingStats) return;
                 if (!_StatsReady || _QueueRunning || _ManualSaving || _SavingAchievement != null || HasPendingChanges)
                 { FinishOrderCommand(command.Id, "failed", "Ce jeu est occupé ou possède des changements non enregistrés."); return; }
+                // Re-read the account state before each command, including after a restart.
+                // Do this only once per command and only after rejecting pending manual changes.
+                if (!_Demo && _RefreshedOrderCommand != command.Id)
+                {
+                    _RefreshedOrderCommand = command.Id;
+                    RefreshStats();
+                    return;
+                }
                 var definition = _AchievementDefinitions.FirstOrDefault(a => a.Id == command.AchievementId);
                 if (definition == null || (definition.Permission & 3) != 0)
                 { FinishOrderCommand(command.Id, "failed", "Succès indisponible ou protégé."); return; }

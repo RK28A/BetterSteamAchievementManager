@@ -19,6 +19,25 @@ namespace SAM.UI
         public static readonly Color Green = Color.FromArgb(162, 209, 100);
 
         [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] private static extern int SetWindowTheme(IntPtr window, string app, string sub);
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Control, object> Themed = new();
+        public static void DrawCheck(Graphics graphics, Rectangle bounds, bool selected, bool enabled)
+        {
+            using var fill = new SolidBrush(selected && enabled ? Blue : Sidebar);
+            using var edge = new Pen(enabled ? Accent : Muted);
+            graphics.FillRectangle(fill, bounds); graphics.DrawRectangle(edge, bounds);
+            if (selected)
+            {
+                using var mark = new Pen(enabled ? Text : Muted, 2);
+                graphics.DrawLines(mark, new[] { new Point(bounds.Left + 3, bounds.Top + bounds.Height / 2), new Point(bounds.Left + bounds.Width / 2 - 1, bounds.Bottom - 4), new Point(bounds.Right - 3, bounds.Top + 4) });
+            }
+        }
+        private static void DarkNative(Control control)
+        {
+            try { SetWindowTheme(control.Handle, "DarkMode_Explorer", null); }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+        }
         private static void DarkTitle(Form form)
         {
             try { int enabled = 1; DwmSetWindowAttribute(form.Handle, 20, ref enabled, sizeof(int)); }
@@ -30,6 +49,15 @@ namespace SAM.UI
         {
             root.BackColor = root is TextBoxBase || root is ListBox ? Sidebar : Background;
             if (root is not System.Windows.Forms.Label || root.ForeColor == SystemColors.ControlText) root.ForeColor = Text;
+            if (!Themed.TryGetValue(root, out _))
+            {
+                Themed.Add(root, new object());
+                root.HandleCreated += (_, _) => DarkNative(root);
+                if (root.IsHandleCreated) DarkNative(root);
+            }
+            if (root is TextBox textBox) textBox.BorderStyle = BorderStyle.FixedSingle;
+            if (root is NumericUpDown numeric) { numeric.BorderStyle = BorderStyle.FixedSingle; numeric.BackColor = Sidebar; }
+            if (root is ComboBox combo) { combo.BackColor = Surface; combo.FlatStyle = FlatStyle.Flat; }
             if (root is Form form) { root.Font = new Font("Segoe UI", 10F); form.HandleCreated += (_, _) => DarkTitle(form); }
             if (root is Button b)
             {
@@ -38,6 +66,8 @@ namespace SAM.UI
                 b.BackColor = Surface;
                 b.Padding = new Padding(10, 5, 10, 5);
                 b.Cursor = Cursors.Hand;
+                b.FlatAppearance.MouseOverBackColor = Blue;
+                b.FlatAppearance.MouseDownBackColor = Sidebar;
             }
             if (root is ToolStrip strip)
             {
