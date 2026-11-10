@@ -109,6 +109,7 @@ namespace SAM.Picker
 
         private void LoadDemoLibrary()
         {
+            _AddGameButton.Enabled = _AddGameTextBox.Enabled = _RefreshGamesButton.Enabled = false;
             foreach (var game in new[] { new GameInfo(620, "normal") { Name = "Portal 2" }, new GameInfo(400, "normal") { Name = "Portal" }, new GameInfo(730, "normal") { Name = "Counter-Strike 2" } })
                 _Games.Add(game.Id, game);
             RefreshGames();
