@@ -5,6 +5,34 @@ namespace SAM.API.Orders
 {
     internal static class OrderPlanning
     {
+        internal static (TimeSpan Minimum, TimeSpan Maximum) Estimate(OrderCart cart)
+        {
+            var groups = cart.Games.Where(g => g.Achievements.Any(a => a.Status != "done")).ToList();
+            double min = 0, max = 0;
+            foreach (var group in groups)
+            {
+                int count = group.Achievements.Count(a => a.Status != "done");
+                min += group.Delay.Sample(0).TotalSeconds * count;
+                max += group.Delay.Sample(1).TotalSeconds * count;
+            }
+            if (cart.BetweenGames && groups.Count > 1)
+            {
+                min += cart.GameDelay.Sample(0).TotalSeconds * (groups.Count - 1);
+                max += cart.GameDelay.Sample(1).TotalSeconds * (groups.Count - 1);
+            }
+            var saved = cart.Checkpoint;
+            if (groups.Count > 0 && saved != null && saved.GameId == groups[0].GameId && saved.AchievementId == groups[0].Achievements.First(a => a.Status != "done").Id)
+            {
+                double remaining = Math.Max(0, saved.RemainingSeconds);
+                if (!saved.BetweenGames)
+                {
+                    min -= groups[0].Delay.Sample(0).TotalSeconds;
+                    max -= groups[0].Delay.Sample(1).TotalSeconds;
+                }
+                min += remaining; max += remaining;
+            }
+            return (TimeSpan.FromSeconds(min), TimeSpan.FromSeconds(max));
+        }
         internal static void Record(OrderCart cart, string action, string detail, OrderStep step = null)
         {
             cart.History ??= new();

@@ -31,7 +31,7 @@ namespace SAM.Picker
             };
             _HistoryPanel.Controls.Add(_HistoryRows); _HistoryPanel.Controls.Add(caption); _HistoryPanel.Controls.Add(title);
             _GameHost.Controls.Add(_HistoryPanel); _HistoryPanel.SendToBack();
-            var button = new SAM.UI.ModernButton { Text = "Historique", Dock = DockStyle.Right, Width = 130 };
+            var button = new Button { Text = "Historique", Dock = DockStyle.Right, Width = 130 };
             button.Click += (_, _) =>
             {
                 try { RefreshHistory(_OrderStore.Read()); _HistoryPanel.BringToFront(); }
@@ -52,8 +52,15 @@ namespace SAM.Picker
         }
         private void UpdateOrderEstimate(OrderCart cart)
         {
-            int remaining = cart.Games.Sum(g => g.Achievements.Count(a => a.Status != "done"));
-            _OrderEstimate.Text = remaining + " succès restant(s) · aucun délai ajouté\n" + (cart.Parallel ? cart.ConcurrentGames + " jeux préparés en parallèle · envois alternés" : "Jeux traités dans l’ordre du panier") + "\nLa durée totale dépend des réponses de Steam.";
+            var estimate = OrderPlanning.Estimate(cart);
+            string Finish(TimeSpan delay)
+            {
+                try { return DateTime.Now.Add(delay).ToString("g"); }
+                catch (ArgumentOutOfRangeException) { return "au-delà du calendrier"; }
+            }
+            _OrderEstimate.Text = "Durée restante : " + FormatRemaining(estimate.Minimum) + " à " + FormatRemaining(estimate.Maximum) +
+                "\nFin estimée " + (_Runner.Running ? "" : "si démarrage maintenant ") + ": " + Finish(estimate.Minimum) + " — " + Finish(estimate.Maximum) +
+                "\nHors temps de réponse Steam et pauses manuelles. Une modification du panier recalcule les délais.";
         }
     }
 }

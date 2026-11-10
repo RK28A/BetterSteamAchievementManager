@@ -12,7 +12,6 @@ namespace SAM.Game
     {
         internal readonly HashSet<string> SelectedIds = new(StringComparer.Ordinal);
         internal ImageList Icons;
-        internal Func<Stats.AchievementInfo, Image> IconProvider;
         internal event EventHandler SelectionEdited;
         private readonly Font _TitleFont = new("Segoe UI", 11, FontStyle.Bold);
         private readonly Font _SmallFont = new("Segoe UI", 9);
@@ -21,7 +20,7 @@ namespace SAM.Game
         {
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             DrawMode = DrawMode.OwnerDrawFixed;
-            ItemHeight = 100;
+            ItemHeight = 126;
             IntegralHeight = false;
             BorderStyle = BorderStyle.None;
             Dock = DockStyle.Fill;
@@ -62,31 +61,29 @@ namespace SAM.Game
         {
             if (e.Index < 0 || e.Index >= Items.Count) return;
             var info = (Stats.AchievementInfo)Items[e.Index];
-            bool selected = SelectedIds.Contains(info.Id), pending = info.Item.Checked != info.IsAchieved;
-            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var canvas = new SolidBrush(BackColor)) e.Graphics.FillRectangle(canvas, e.Bounds);
-            var bounds = new Rectangle(e.Bounds.X + 12, e.Bounds.Y + 5, Math.Max(1, e.Bounds.Width - 26), e.Bounds.Height - 10);
-            using var shape = SteamTheme.Rounded(bounds, 10);
-            using (var bg = new SolidBrush(selected ? Color.FromArgb(43, 37, 70) : SteamTheme.Surface)) e.Graphics.FillPath(bg, shape);
-            using (var border = new Pen(selected ? SteamTheme.Blue : Color.FromArgb(39, 43, 57))) e.Graphics.DrawPath(border, shape);
-            var imageRect = new Rectangle(bounds.X + 14, bounds.Y + 17, 56, 56);
-            var cachedIcon = IconProvider?.Invoke(info);
-            if (cachedIcon != null) e.Graphics.DrawImage(cachedIcon, imageRect);
-            else if (Icons != null && info.ImageIndex > 0 && info.ImageIndex < Icons.Images.Count) e.Graphics.DrawImage(Icons.Images[info.ImageIndex], imageRect);
+            bool selected = SelectedIds.Contains(info.Id);
+            bool pending = info.Item.Checked != info.IsAchieved;
+            var bounds = new Rectangle(e.Bounds.X + 6, e.Bounds.Y + 4, Math.Max(0, e.Bounds.Width - 14), e.Bounds.Height - 8);
+            using (var bg = new SolidBrush(selected ? Color.FromArgb(39, 64, 83) : SteamTheme.Surface)) e.Graphics.FillRectangle(bg, bounds);
+            if (selected) { using var edge = new SolidBrush(SteamTheme.Accent); e.Graphics.FillRectangle(edge, bounds.X, bounds.Y, 3, bounds.Height); }
+            var imageRect = new Rectangle(bounds.X + 14, bounds.Y + 13, 70, 70);
+            if (Icons != null && info.ImageIndex > 0 && info.ImageIndex < Icons.Images.Count) e.Graphics.DrawImage(Icons.Images[info.ImageIndex], imageRect);
             else
             {
-                using var tile = new SolidBrush(Color.FromArgb(39, 37, 62)); using var tileShape = SteamTheme.Rounded(imageRect, 9);
-                e.Graphics.FillPath(tile, tileShape);
-                TextRenderer.DrawText(e.Graphics, "◇", _TitleFont, imageRect, SteamTheme.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                using var tile = new SolidBrush(Color.FromArgb(29, 42, 53)); e.Graphics.FillRectangle(tile, imageRect);
+                TextRenderer.DrawText(e.Graphics, "★", _TitleFont, imageRect, SteamTheme.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
-            int x = imageRect.Right + 16, width = Math.Max(1, bounds.Right - x - 16);
-            TextRenderer.DrawText(e.Graphics, info.Name, _TitleFont, new Rectangle(x, bounds.Y + 10, width - 32, 24), SteamTheme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            TextRenderer.DrawText(e.Graphics, info.Description, _SmallFont, new Rectangle(x, bounds.Y + 36, width, 20), SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            string rarity = info.GlobalPercent.HasValue ? info.GlobalPercent.Value.ToString("0.0") + " % des joueurs" : "Rareté indisponible";
-            TextRenderer.DrawText(e.Graphics, rarity, _SmallFont, new Rectangle(x, bounds.Y + 62, Math.Max(1, width - 155), 19), info.GlobalPercent < 10 ? SteamTheme.Accent : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            string status = (info.Permission & 3) != 0 ? "Protégé" : pending ? "À enregistrer" : info.IsAchieved ? "✓ Débloqué" : "Non débloqué";
-            TextRenderer.DrawText(e.Graphics, status, _SmallFont, new Rectangle(bounds.Right - 160, bounds.Y + 62, 144, 19), pending ? SteamTheme.Accent : info.IsAchieved ? SteamTheme.Green : SteamTheme.Muted, TextFormatFlags.Right | TextFormatFlags.SingleLine);
-            SteamTheme.DrawCheck(e.Graphics, new Rectangle(bounds.Right - 32, bounds.Y + 14, 16, 16), selected, (info.Permission & 3) == 0 && Enabled);
+            int width = Math.Max(0, bounds.Width - 151);
+            var title = new Rectangle(bounds.X + 100, bounds.Y + 12, width, 24);
+            TextRenderer.DrawText(e.Graphics, info.Name, _TitleFont, title, SteamTheme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            var description = new Rectangle(title.X, bounds.Y + 39, width, 22);
+            TextRenderer.DrawText(e.Graphics, info.Description, Font, description, SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            string status = (info.Permission & 3) != 0 ? "PROTÉGÉ · lecture seule" : pending ? (info.Item.Checked ? "À DÉBLOQUER · en attente d’enregistrement" : "À VERROUILLER · en attente d’enregistrement") : info.IsAchieved ? "DÉBLOQUÉ" + (info.UnlockTime.HasValue ? " · " + info.UnlockTime.Value.ToString("g") : "") : "NON DÉBLOQUÉ";
+            TextRenderer.DrawText(e.Graphics, status, _SmallFont, new Rectangle(title.X, bounds.Y + 90, width, 20), pending ? SteamTheme.Accent : info.IsAchieved ? SteamTheme.Green : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            string rarity = info.GlobalPercent.HasValue ? info.GlobalPercent.Value.ToString("0.0") + " % des joueurs ont débloqué ce succès" : "Rareté mondiale indisponible";
+            TextRenderer.DrawText(e.Graphics, rarity, _SmallFont, new Rectangle(title.X, bounds.Y + 66, width, 20), info.GlobalPercent < 10 ? SteamTheme.Accent : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+            SteamTheme.DrawCheck(e.Graphics, new Rectangle(bounds.Right - 35, bounds.Top + 45, 18, 18), selected, (info.Permission & 3) == 0 && Enabled);
+            if ((e.State & DrawItemState.Focus) != 0 && Focused) ControlPaint.DrawFocusRectangle(e.Graphics, bounds, SteamTheme.Accent, SteamTheme.Surface);
         }
         protected override void Dispose(bool disposing)
         {

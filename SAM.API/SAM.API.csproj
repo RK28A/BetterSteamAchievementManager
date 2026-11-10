@@ -6,9 +6,9 @@
     <Copyright>Copyright © Gibbed 2019</Copyright>
   </PropertyGroup>
   <PropertyGroup>
-    <Version>8.3.0</Version>
-    <AssemblyVersion>8.3.0.0</AssemblyVersion>
-    <FileVersion>8.3.0.0</FileVersion>
+    <Version>8.2.0</Version>
+    <AssemblyVersion>8.2.0.0</AssemblyVersion>
+    <FileVersion>8.2.0.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>Pink.ico</ApplicationIcon>
@@ -28,5 +28,5 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup><Reference Include="System.Drawing" /><Reference Include="System.Web.Extensions" /><Reference Include="System.Net.Http" /></ItemGroup>
+  <ItemGroup><Reference Include="System.Web.Extensions" /><Reference Include="System.Net.Http" /></ItemGroup>
 </Project>
