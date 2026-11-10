@@ -3,6 +3,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace SAM.UI
 {
@@ -17,11 +18,19 @@ namespace SAM.UI
         public static readonly Color Blue = Color.FromArgb(39, 115, 168);
         public static readonly Color Green = Color.FromArgb(162, 209, 100);
 
+        [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+        private static void DarkTitle(Form form)
+        {
+            try { int enabled = 1; DwmSetWindowAttribute(form.Handle, 20, ref enabled, sizeof(int)); }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+        }
+
         public static void Apply(Control root)
         {
             root.BackColor = root is TextBoxBase || root is ListBox ? Sidebar : Background;
             root.ForeColor = Text;
-            if (root is Form) root.Font = new Font("Segoe UI", 10F);
+            if (root is Form form) { root.Font = new Font("Segoe UI", 10F); form.HandleCreated += (_, _) => DarkTitle(form); }
             if (root is Button b)
             {
                 b.FlatStyle = FlatStyle.Flat;

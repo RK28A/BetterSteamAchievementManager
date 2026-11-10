@@ -38,6 +38,7 @@ internal static class Program
     }
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr parent, uint command);
     [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr child);
+    [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr window, IntPtr context, uint flags);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect rect);
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
 
@@ -54,10 +55,25 @@ internal static class Program
         var clock = Stopwatch.StartNew();
         do { Application.DoEvents(); Thread.Sleep(15); } while (clock.ElapsedMilliseconds < milliseconds);
     }
-    private static void Capture(Form form, string path)
+    private static void Capture(Form form, string path, Panel embedded = null)
     {
         using var image = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
         form.DrawToBitmap(image, new Rectangle(Point.Empty, form.ClientSize));
+        if (embedded != null)
+        {
+            var child = GetWindow(embedded.Handle, 5);
+            if (child != IntPtr.Zero)
+            {
+                using var childImage = new Bitmap(embedded.ClientSize.Width, embedded.ClientSize.Height);
+                using (var graphics = Graphics.FromImage(childImage))
+                {
+                    IntPtr dc = graphics.GetHdc();
+                    try { PrintWindow(child, dc, 0); } finally { graphics.ReleaseHdc(dc); }
+                }
+                using var canvas = Graphics.FromImage(image);
+                canvas.DrawImage(childImage, form.PointToClient(embedded.PointToScreen(Point.Empty)));
+            }
+        }
         image.Save(path);
     }
 
@@ -186,7 +202,32 @@ internal static class Program
                 Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = "Portal";
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 2, "library search filters games");
                 Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = "";
-                Capture(library, "test-results/library.png");
+                var sessions = Field<System.Collections.Generic.Dictionary<uint, (Panel Panel, Process Process)>>(library, "_Sessions");
+                try
+                {
+                    Invoke(library, "OpenGame", 2);
+                    var first = sessions[620];
+                    var clock = Stopwatch.StartNew();
+                    while (clock.Elapsed < TimeSpan.FromSeconds(20) && GetWindow(first.Panel.Handle, 5) == IntPtr.Zero && !first.Process.HasExited) Pump(100);
+                    Check(GetWindow(first.Panel.Handle, 5) != IntPtr.Zero, "library click opens embedded achievement view");
+                    Invoke(library, "OpenGame", 1);
+                    var second = sessions[400];
+                    clock.Restart();
+                    while (clock.Elapsed < TimeSpan.FromSeconds(20) && GetWindow(second.Panel.Handle, 5) == IntPtr.Zero && !second.Process.HasExited) Pump(100);
+                    Check(GetWindow(second.Panel.Handle, 5) != IntPtr.Zero, "another game opens an isolated view");
+                    Invoke(library, "OpenGame", 2); Pump(200);
+                    Check(sessions.Count == 2 && sessions[620].Process.Id == first.Process.Id, "switching games reuses the existing session");
+                    Capture(library, "test-results/library.png", first.Panel);
+                }
+                finally
+                {
+                    foreach (var session in sessions.Values)
+                    {
+                        if (!session.Process.HasExited) session.Process.Kill();
+                        session.Process.WaitForExit(5000);
+                    }
+                    Pump(100);
+                }
                 library.Close();
             }
             Console.WriteLine($"{_Assertions} assertions passed.");
