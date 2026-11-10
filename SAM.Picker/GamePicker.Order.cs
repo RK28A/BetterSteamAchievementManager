@@ -51,10 +51,16 @@ namespace SAM.Picker
             // Preserve the caption as the uppermost reserved strip.
             var caption = Controls.Cast<Control>().FirstOrDefault(c => c.AccessibleName == "Barre de fenêtre"); caption?.SendToBack();
             _OrderPanel = new Panel { Dock = DockStyle.Fill, BackColor = SteamTheme.Background };
-            var header = new HeroPanel { Dock = DockStyle.Top, Height = 105, Padding = new Padding(22, 10, 14, 8) };
+            // Reserve a measured row for navigation instead of squeezing a right-docked
+            // button below top-docked labels in a fixed-height header.
+            var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1, RowCount = 3, Padding = new Padding(22, 10, 14, 8), Margin = Padding.Empty };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            for (int i = 0; i < 3; i++) header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var title = SteamTheme.Label("Achievement Order", 24); title.Dock = DockStyle.Top;
             _OrderCount = SteamTheme.Label("Votre panier multi-jeux", 11, SteamTheme.Muted); _OrderCount.Dock = DockStyle.Top;
-            header.Controls.Add(_OrderCount); header.Controls.Add(title);
+            title.Margin = _OrderCount.Margin = Padding.Empty;
+            header.Controls.Add(title, 0, 0); header.Controls.Add(_OrderCount, 0, 1);
             var body = new SplitContainer { Dock = DockStyle.Fill, Size = new Size(840, 450), FixedPanel = FixedPanel.Panel2, SplitterWidth = 2, BackColor = SteamTheme.Background };
             body.SplitterDistance = 560; body.Panel1MinSize = 260; body.Panel2MinSize = 250;
             _OrderRows = new OrderRows(); body.Panel1.Controls.Add(_OrderRows);
