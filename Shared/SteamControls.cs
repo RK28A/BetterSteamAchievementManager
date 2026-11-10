@@ -21,6 +21,20 @@ namespace SAM.UI
             var rect = e.Bounds; rect.Inflate(-6, 0);
             TextRenderer.DrawText(e.Graphics, text, Font, rect, Enabled ? SteamTheme.Text : SteamTheme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
         }
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if ((m.Msg != 0x000F && m.Msg != 0x0318) || !IsHandleCreated) return;
+            using var graphics = m.Msg == 0x0318 && m.WParam != IntPtr.Zero ? Graphics.FromHdc(m.WParam) : Graphics.FromHwnd(Handle);
+            int arrowWidth = Math.Max(22, SystemInformation.VerticalScrollBarWidth + 4);
+            using var background = new SolidBrush(SteamTheme.Surface);
+            graphics.FillRectangle(background, Width - arrowWidth, 0, arrowWidth, Height);
+            using var border = new Pen(Focused ? SteamTheme.Accent : SteamTheme.Sidebar, 2);
+            graphics.DrawRectangle(border, 1, 1, Math.Max(0, Width - 2), Math.Max(0, Height - 2));
+            using var arrow = new Pen(Enabled ? SteamTheme.Text : SteamTheme.Muted, 1.5f);
+            int x = Width - arrowWidth / 2, y = Height / 2;
+            graphics.DrawLines(arrow, new[] { new Point(x - 4, y - 2), new Point(x, y + 2), new Point(x + 4, y - 2) });
+        }
     }
     internal sealed class SteamCheckBox : CheckBox
     {

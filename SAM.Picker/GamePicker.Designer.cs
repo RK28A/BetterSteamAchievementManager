@@ -41,10 +41,6 @@ namespace SAM.Picker
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Segoe UI", 10);
-            var top = new Panel { Dock = DockStyle.Top, Height = 52, Padding = new Padding(26, 14, 20, 8) };
-            var nav = SteamTheme.Label("BIBLIOTHÈQUE", 17, SteamTheme.Accent);
-            nav.Dock = DockStyle.Bottom;
-            top.Controls.Add(nav);
             var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 2, FixedPanel = FixedPanel.Panel1, BackColor = SteamTheme.Surface };
             split.Size = ClientSize;
             split.SplitterDistance = 292;
@@ -122,12 +118,10 @@ namespace SAM.Picker
             Controls.Add(split);
             Controls.Add(_PickerToolStrip);
             Controls.Add(_PickerStatusStrip);
-            Controls.Add(top);
             SteamTheme.Apply(this);
             welcome.BackColor = Color.Transparent;
             foreach (Control child in welcome.Controls) child.BackColor = Color.Transparent;
             _GameListView.BackColor = SteamTheme.Sidebar;
-            top.BackColor = SteamTheme.Background;
             ResumeLayout(true);
         }
     }
