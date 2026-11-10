@@ -48,6 +48,7 @@ internal static class Program
         return IntPtr.Zero;
     }
     [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr child);
+    [DllImport("user32.dll")] private static extern IntPtr ChildWindowFromPointEx(IntPtr parent, Point point, uint flags);
     [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr window, IntPtr context, uint flags);
     [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out Rect rect);
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
@@ -83,6 +84,20 @@ internal static class Program
                 using var canvas = Graphics.FromImage(image);
                 canvas.DrawImage(childImage, form.PointToClient(embedded.PointToScreen(Point.Empty)));
             }
+        }
+        image.Save(path);
+    }
+
+    private static void CaptureScreen(Form form, string path)
+    {
+        form.BringToFront(); form.Activate(); Pump(250);
+        var screenBounds = form.RectangleToScreen(form.ClientRectangle);
+        var visible = Rectangle.Intersect(screenBounds, Screen.FromControl(form).Bounds);
+        using var image = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
+        using (var g = Graphics.FromImage(image))
+        {
+            g.Clear(Color.FromArgb(27, 32, 40));
+            g.CopyFromScreen(visible.Location, new Point(visible.Left - screenBounds.Left, visible.Top - screenBounds.Top), visible.Size);
         }
         image.Save(path);
     }
@@ -213,7 +228,7 @@ internal static class Program
             }
             using (var library = new SAM.Picker.GamePicker(null, true))
             {
-                library.Show(); Pump(200);
+                library.Show(); library.Bounds = Screen.PrimaryScreen.WorkingArea; Pump(200);
                 Check(library.FormBorderStyle == FormBorderStyle.None, "library has no native white window border");
                 Check(library.Controls.Cast<Control>().Any(c => c.AccessibleName == "Barre de fenêtre"), "library supplies dark caption with window actions");
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 3, "library renders games without Steam");
@@ -235,7 +250,7 @@ internal static class Program
                     Check(FindEmbedded(second.Panel, second.Process) != IntPtr.Zero, "another game opens an isolated view");
                     Invoke(library, "OpenGame", 2); Pump(200);
                     Check(sessions.Count == 2 && sessions[620].Process.Id == first.Process.Id, "switching games reuses the existing session");
-                    Capture(library, "test-results/library.png", first.Panel, FindEmbedded(first.Panel, first.Process));
+                    CaptureScreen(library, "test-results/library.png");
                     var cartStore = new SAM.API.Orders.JsonStore<SAM.API.Orders.OrderCart>(Field<string>(library, "_CartPath"));
                     SAM.API.Orders.OrderPaths.Add(cartStore, new SAM.API.Orders.OrderGroup { GameId = 620, Name = "Portal 2", Achievements = new System.Collections.Generic.List<SAM.API.Orders.OrderAchievement> { new() { Id = "A", Name = "Meilleur ami de l’homme" }, new() { Id = "B", Name = "Collectionneur" } } });
                     SAM.API.Orders.OrderPaths.Add(cartStore, new SAM.API.Orders.OrderGroup { GameId = 400, Name = "Portal", Achievements = new System.Collections.Generic.List<SAM.API.Orders.OrderAchievement> { new() { Id = "C", Name = "Le début de l’aventure" } } });
@@ -249,7 +264,10 @@ internal static class Program
                     Field<CheckBox>(library, "_BetweenGames").Checked = true;
                     Check(cartStore.Read().BetweenGames, "cart enables the inter-game timer");
                     Check(!Field<Button>(library, "_RunOrder").Enabled, "cart demonstration cannot execute Steam writes");
-                    Capture(library, "test-results/achievement-order.png");
+                    var orderPanel = Field<Panel>(library, "_OrderPanel");
+                    var hostPanel = Field<Panel>(library, "_GameHost");
+                    Check(ChildWindowFromPointEx(hostPanel.Handle, new Point(20, 20), 1) == orderPanel.Handle, "cart is actually in front of embedded game windows");
+                    CaptureScreen(library, "test-results/achievement-order.png");
                 }
                 finally
                 {
