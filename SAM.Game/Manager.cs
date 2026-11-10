@@ -103,6 +103,7 @@ namespace SAM.Game
 
             //this.UserStatsStoredCallback = new API.Callback(1102, new API.Callback.CallbackFunction(this.OnUserStatsStored));
 
+            this.InitializeScheduler();
             this.RefreshStats();
         }
 
@@ -700,12 +701,14 @@ namespace SAM.Game
 
         private void DisableInput()
         {
+            this.SetSchedulerReady(false);
             this._ReloadButton.Enabled = false;
             this._StoreButton.Enabled = false;
         }
 
         private void EnableInput()
         {
+            this.SetSchedulerReady(true);
             this._ReloadButton.Enabled = true;
             this._StoreButton.Enabled = true;
         }
