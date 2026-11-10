@@ -110,6 +110,8 @@ namespace SAM.Picker
             FormClosed += (_, _) => { _Runner.Stop(); ReleaseOrderLease(); };
             InitializeHistory(bar);
             InitializeGameTime(bar);
+            InitializeParallelOrder(header);
+            InitializeTray();
             RefreshOrderCart();
         }
 
@@ -195,7 +197,7 @@ namespace SAM.Picker
         }
         private void StartOrder()
         {
-            if (_Demo || _Runner.Running) return;
+            if (_Demo || _Runner.Running || _Background.ParallelEnabled) return;
             try
             {
                 _OrderRunGate = new System.Threading.Mutex(false, "Local\\BSAM-AchievementOrder-Run");
@@ -295,6 +297,7 @@ namespace SAM.Picker
                     {
                         EnsureSession(new GameInfo(step.GameId, "normal") { Name = step.GameName }, false);
                         _PendingCommand = Guid.NewGuid().ToString("N");
+                        _Commands = new JsonStore<OrderCommand>(GameCommandPath(step.GameId));
                         _Commands.Update(command => { command.Id = _PendingCommand; command.RunId = _RunId; command.GameId = step.GameId; command.AchievementId = step.Achievement.Id; command.State = "requested"; command.Message = null; });
                         _CommandClock.Restart();
                         _OrderStore.Update(cart => { cart.Games.First(g => g.GameId == step.GameId).Achievements.First(a => a.Id == step.Achievement.Id).Status = "sending"; cart.Checkpoint = _Runner.Snapshot(_OrderClock.Elapsed); });

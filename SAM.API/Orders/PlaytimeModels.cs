@@ -7,6 +7,7 @@ namespace SAM.API.Orders
         public string State { get; set; } = "starting";
         public string Message { get; set; }
         public DateTime StartedUtc { get; set; }
+        public DateTime HeartbeatUtc { get; set; }
         public double ElapsedSeconds { get; set; }
     }
     internal sealed class PlaytimeSettings

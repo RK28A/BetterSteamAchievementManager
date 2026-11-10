@@ -77,7 +77,7 @@ namespace SAM.Picker
                 var start = new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SAM.Game.exe"),
                     game.Id.ToString(CultureInfo.InvariantCulture) + " --host " + panel.Handle.ToInt64().ToString(CultureInfo.InvariantCulture) +
                     " --owner " + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
-                    " --cart \"" + _CartPath + "\" --command \"" + _CommandPath + "\"" + (_Demo ? " --demo" : ""))
+                    " --cart \"" + _CartPath + "\" --command \"" + GameCommandPath(game.Id) + "\"" + (_Demo ? " --demo" : ""))
                 { UseShellExecute = false, WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory };
                 var process = Process.Start(start);
                 process.EnableRaisingEvents = true;
@@ -98,21 +98,11 @@ namespace SAM.Picker
 
         private void OnLibraryClosing(object sender, FormClosingEventArgs e)
         {
-            bool open = false;
-            foreach (var session in _Sessions.Values) if (!session.Process.HasExited) open = true;
-            if ((open || _TimeJobs.Values.Any(j => j.Running)) && MessageBox.Show(this,
-                "Fermer la bibliothèque ? Achievement Order sera sauvegardé pour une reprise manuelle et les sessions GameTime seront arrêtées. Les modifications manuelles non enregistrées seront perdues.",
-                "Fermer BetterSteamAchievementManager", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-            { e.Cancel = true; return; }
-            if (_PendingCommand != null && _Runner.Running)
-            {
-                PauseOrder();
-                MessageBox.Show(this, "Une confirmation Steam est en cours. La commande passera en pause à sa réception ; vous pourrez ensuite fermer la fenêtre.", "Confirmation en cours");
-                e.Cancel = true; return;
-            }
-            if (_Runner.Running) { _Runner.Pause(_OrderClock.Elapsed); SaveOrderCheckpoint("Fermeture", "Commande sauvegardée pour une reprise manuelle."); }
+            if (e.CloseReason == CloseReason.UserClosing && !_ExitRequested) { e.Cancel = true; HideToTray(); return; }
+            if (_Runner.Running) { _Runner.Pause(_OrderClock.Elapsed); SaveOrderCheckpoint("Fermeture", "Commande séquentielle sauvegardée."); }
             _ClosingLibrary = true;
-            StopAllGameTime();
+            SuspendParallel();
+            SuspendTimeWorkers();
             _Runner.Stop();
             ReleaseOrderLease();
             foreach (var session in _Sessions.Values)
