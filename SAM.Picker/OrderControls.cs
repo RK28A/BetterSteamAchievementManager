@@ -24,7 +24,7 @@ namespace SAM.Picker
             var row = new Panel { Dock = DockStyle.Top, Height = 32 };
             var caption = SteamTheme.Label(title, 9, SteamTheme.Muted);
             caption.AutoSize = false; caption.Dock = DockStyle.Fill; caption.AutoEllipsis = true; caption.TextAlign = ContentAlignment.MiddleLeft;
-            _Unit.Dock = DockStyle.Right; _Unit.Width = 90;
+            _Unit.Dock = DockStyle.Right; _Unit.Width = 112;
             row.Controls.Add(caption); row.Controls.Add(_Unit);
             _Min.AccessibleName = "Délai minimum";
             _Max.AccessibleName = "Délai maximum";

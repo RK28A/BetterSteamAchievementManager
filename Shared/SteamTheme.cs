@@ -71,8 +71,9 @@ namespace SAM.UI
             }
             if (root is ToolStrip strip)
             {
-                strip.Renderer = new ToolStripProfessionalRenderer(new SteamColors());
+                strip.Renderer = new SteamRenderer();
                 strip.GripStyle = ToolStripGripStyle.Hidden;
+                if (strip is StatusStrip status) status.SizingGrip = false;
                 strip.Padding = new Padding(8, 5, 8, 5);
                 foreach (ToolStripItem item in strip.Items)
                 {
@@ -115,6 +116,18 @@ namespace SAM.UI
 
         public static Label Label(string text, float size = 10, Color? color = null)
             => new Label { Text = text, AutoSize = true, ForeColor = color ?? Text, Font = new Font("Segoe UI", size), Margin = new Padding(0, 4, 0, 4) };
+
+        private sealed class SteamRenderer : ToolStripProfessionalRenderer
+        {
+            internal SteamRenderer() : base(new SteamColors()) { RoundedEdges = false; }
+            protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e) { }
+            protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+            {
+                using var pen = new Pen(Surface);
+                if (e.Vertical) e.Graphics.DrawLine(pen, e.Item.Width / 2, 5, e.Item.Width / 2, e.Item.Height - 5);
+                else e.Graphics.DrawLine(pen, 6, e.Item.Height / 2, e.Item.Width - 6, e.Item.Height / 2);
+            }
+        }
 
         private sealed class SteamColors : ProfessionalColorTable
         {

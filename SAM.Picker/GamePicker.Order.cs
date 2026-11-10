@@ -44,9 +44,9 @@ namespace SAM.Picker
             _OrderButton.FlatAppearance.BorderSize = 0;
             _OrderButton.Click += (_, _) => { _OrderPanel.BringToFront(); RefreshOrderCart(); };
             // The button lives in the library navigation strip, below the custom window caption.
-            var bar = new Panel { Dock = DockStyle.Top, BackColor = SteamTheme.Background, Height = 40, Padding = new Padding(16, 2, 20, 2) };
+            var bar = new Panel { Dock = DockStyle.Top, BackColor = SteamTheme.Background, Height = 48, Padding = new Padding(20, 5, 20, 5) };
             bar.Controls.Add(_OrderButton);
-            bar.Controls.Add(SteamTheme.Label("VOS JEUX  /  VOS OBJECTIFS", 10, SteamTheme.Muted));
+            bar.Controls.Add(SteamTheme.Label("BIBLIOTHÈQUE", 16, SteamTheme.Accent));
             Controls.Add(bar); bar.SendToBack();
             // Preserve the caption as the uppermost reserved strip.
             var caption = Controls.Cast<Control>().FirstOrDefault(c => c.AccessibleName == "Barre de fenêtre"); caption?.SendToBack();
