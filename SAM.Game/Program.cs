@@ -54,7 +54,8 @@ namespace SAM.Game
                 catch (Exception e) when (e is API.ClientInitializeException || e is DllNotFoundException || e is BadImageFormatException)
                 { MessageBox.Show("Impossible de se connecter à Steam. Vérifiez que Steam est ouvert et votre compte connecté.\n" + e.Message, "Connexion Steam"); return; }
             }
-            using var manager = new Manager(appId, client, demo);
+            string Argument(string key) { int i = Array.IndexOf(args, key); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
+            using var manager = new Manager(appId, client, demo, cartPath: Argument("--cart"), commandPath: Argument("--command"), embedded: Array.IndexOf(args, "--host") >= 0);
             int hostIndex = Array.IndexOf(args, "--host");
             int ownerIndex = Array.IndexOf(args, "--owner");
             if (hostIndex >= 0 && ownerIndex >= 0 && hostIndex + 1 < args.Length && ownerIndex + 1 < args.Length &&

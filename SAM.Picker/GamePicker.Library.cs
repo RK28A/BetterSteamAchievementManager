@@ -49,9 +49,14 @@ namespace SAM.Picker
             if (_ClosingLibrary || index < 0 || index >= _FilteredGames.Count) return;
             var game = _FilteredGames[index];
             _ActiveGameId = game.Id;
+            EnsureSession(game, true);
+        }
+
+        private void EnsureSession(GameInfo game, bool show)
+        {
             if (_Sessions.TryGetValue(game.Id, out var existing) && !existing.Process.HasExited)
             {
-                existing.Panel.BringToFront();
+                if (show) existing.Panel.BringToFront();
                 return;
             }
             if (_Sessions.ContainsKey(game.Id))
@@ -65,12 +70,13 @@ namespace SAM.Picker
             loading.Location = new Point(36, 48);
             panel.Controls.Add(loading);
             _GameHost.Controls.Add(panel);
-            panel.BringToFront();
+            if (show) panel.BringToFront(); else panel.SendToBack();
             try
             {
                 var start = new ProcessStartInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SAM.Game.exe"),
                     game.Id.ToString(CultureInfo.InvariantCulture) + " --host " + panel.Handle.ToInt64().ToString(CultureInfo.InvariantCulture) +
-                    " --owner " + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + (_Demo ? " --demo" : ""))
+                    " --owner " + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
+                    " --cart \"" + _CartPath + "\" --command \"" + _CommandPath + "\"" + (_Demo ? " --demo" : ""))
                 { UseShellExecute = false, WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory };
                 var process = Process.Start(start);
                 process.EnableRaisingEvents = true;
@@ -98,6 +104,8 @@ namespace SAM.Picker
                 "Fermer BetterSteamAchievementManager", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             { e.Cancel = true; return; }
             _ClosingLibrary = true;
+            _Runner.Stop();
+            ReleaseOrderLease();
             foreach (var session in _Sessions.Values)
             {
                 try { if (!session.Process.HasExited) session.Process.Kill(); }

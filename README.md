@@ -1,45 +1,39 @@
 # BetterSteamAchievementManager
 
-Une bibliothèque de succès Windows inspirée de l’interface Steam. Version modifiée de [Steam Achievement Manager de gibbed](https://github.com/gibbed/SteamAchievementManager/), basée sur `de8b71048a0cee3c3e97cd8535e0f55ca86513e4`. Le code, l’historique et les licences d’origine sont conservés.
+Une bibliothèque de succès avec une interface sombre inspirée de Steam : jeux à gauche, succès en cartes à droite et panier multi-jeux **Achievement Order**.
 
-[**Télécharger la dernière version**](https://github.com/RK28A/BetterSteamAchievementManager/releases/latest) · [Compilations et tests](https://github.com/RK28A/BetterSteamAchievementManager/actions)
+[**Télécharger la dernière version**](https://github.com/RK28A/BetterSteamAchievementManager/releases/latest)
 
 ## Installation
 
-Windows avec **.NET Framework 4.8**, Steam ouvert et un compte connecté. L’application est compilée en **x86**, également utilisable sur Windows 64 bits.
+Windows, **.NET Framework 4.8**, Steam ouvert et un compte connecté.
 
-- **Un seul téléchargement `.exe`** : lancer `BetterSteamAchievementManager.exe`. Le distributeur extrait les fichiers de l’application et les licences dans `%LOCALAPPDATA%\BetterSteamAchievementManager\app-<empreinte>`, puis ouvre la bibliothèque. Il ne demande pas de droits administrateur. Il s’agit d’une distribution en un fichier, pas d’un binaire sans dépendance au framework.
-- **ZIP portable** : extraire tous les fichiers ensemble dans un dossier hors du répertoire Steam, puis lancer `SAM.Picker.exe`.
+- **BetterSteamAchievementManager.exe** : un seul fichier à télécharger. Il extrait automatiquement l’application dans `%LOCALAPPDATA%\BetterSteamAchievementManager` et la lance.
+- **ZIP portable** : extraire tous les fichiers ensemble, puis lancer `SAM.Picker.exe`.
 
-Les sommes SHA-256 sont fournies dans les Releases. Les exécutables ne sont pas signés.
+La barre de fenêtre est intégrée au thème : déplacer, réduire, agrandir et fermer. Les sommes SHA-256 sont disponibles dans chaque Release.
 
-## Bibliothèque et cartes de succès
+## Succès
 
-1. Les jeux s’affichent à gauche, avec recherche et filtres (jeux, démos, mods, autres). **App ID / Ajouter un jeu** ajoute un jeu possédé sans effacer la bibliothèque existante.
-2. Cliquez sur un jeu : ses succès apparaissent à droite dans la même fenêtre, avec image, nom, description, état et date de déblocage lorsqu’elle est disponible.
-3. Utilisez **Tout sélectionner**, **Tout désélectionner**, **Inverser**, ou **Non débloqués**. Un clic sur une carte ou la touche Espace bascule sa sélection ; Ctrl+A sélectionne les cartes visibles. Les succès protégés restent en lecture seule.
-4. **Débloquer** ou **Verrouiller** prépare les changements. Les cartes portent une mention « en attente d’enregistrement ». Sélectionner une carte ne modifie jamais à lui seul un succès.
-5. **Enregistrer les modifications** envoie les changements. L’application attend la confirmation de Steam avant de les annoncer comme enregistrés.
+Sélectionnez un jeu, puis ses succès. Les boutons permettent de tout sélectionner, tout désélectionner, inverser ou sélectionner les succès non débloqués. La recherche et les filtres conservent les sélections.
 
-La recherche et les filtres conservent les sélections et les changements masqués. Les opérations de sélection portent sur les cartes affichées ; **Tout désélectionner** vide aussi les sélections masquées. **Annuler** rétablit les valeurs de succès et de statistiques chargées. L’onglet **Statistiques**, l’accord d’édition, l’actualisation et la réinitialisation restent accessibles.
+**Débloquer** et **Verrouiller** préparent des changements ; **Enregistrer les modifications** les envoie à Steam. **Annuler** rétablit les valeurs chargées. Les statistiques, filtres de jeux, ajout par App ID, actualisation et réinitialisation restent disponibles.
 
-Changer de jeu conserve sa vue, sa sélection et sa file dans un processus Steam distinct. Fermer la bibliothèque arrête ses processus après confirmation ; les changements déjà envoyés ne sont pas annulés. Les vues se ferment aussi si leur bibliothèque disparaît. Les sélections et files ne sont pas persistées après fermeture.
+## Achievement Order
 
-## Déblocage progressif actuel
+1. Sélectionnez les succès souhaités d’un jeu et cliquez sur **+ Achievement Order**.
+2. Répétez pour vos autres jeux, puis ouvrez **Achievement Order** en haut de la bibliothèque.
+3. Sélectionnez un jeu dans le panier. Réglez ses délais minimum et maximum avec les sliders et choisissez **minutes, heures ou jours**. Par défaut : **3 à 10 minutes** entre ses succès.
+4. Activez au besoin **Pause entre les jeux**, avec ses propres bornes et son unité. Cette pause s’ajoute au délai avant le premier succès du jeu suivant.
+5. Utilisez **Monter**, **Descendre**, **Retirer** ou **Vider** pour organiser le panier, puis **Démarrer**.
 
-L’onglet **Déblocage progressif** conserve la file actuelle par jeu. Depuis les cartes, le bouton du même nom y transfère la sélection des succès éligibles.
+Le panier regroupe les jeux et leurs succès avec leurs images, exclut les doublons et les succès protégés ou déjà obtenus au moment de l’ajout. Il est enregistré automatiquement. Un seul succès est envoyé à la fois ; la commande attend la confirmation de Steam avant de poursuivre. Un succès déjà obtenu lors de l’exécution est ignoré.
 
-- Délai aléatoire **3 à 10 minutes par défaut**, réglable de 1 à 1440 minutes. Des bornes identiques donnent un délai fixe.
-- Un délai avant chaque succès, y compris le premier. Un seul envoi à la fois, dans l’ordre affiché, avec confirmation Steam avant le délai suivant.
-- Compte à rebours, journal et bouton **Arrêter**. Arrêter pendant une confirmation laisse terminer l’envoi en cours puis annule la suite.
-- Les changements manuels doivent être enregistrés ou annulés avant de démarrer une file. Les autres écritures sont bloquées pendant son exécution.
-- Après 60 secondes sans confirmation, les écritures restent bloquées jusqu’à une réponse tardive ou au redémarrage : l’issue de l’envoi est inconnue.
+**Arrêter** annule les envois futurs ; un envoi déjà parti attend sa confirmation. Le panier ne reprend jamais automatiquement au démarrage. Les éléments terminés restent visibles et ne sont pas renvoyés au prochain départ. Les modifications du panier sont bloquées pendant son exécution. En cas d’erreur ou d’absence de confirmation, la commande s’arrête ; vérifiez la vue du jeu avant de réessayer.
 
-Le panier multi-jeux « Achievement Order », les sliders minutes/heures/jours et le délai entre jeux sont réservés à une prochaine évolution. Les délais actuels espacent les envois ; ils ne simulent pas le gameplay, les prérequis ou l’ordre logique des succès.
+L’ancienne file par jeu reste dans **Déblocage progressif**. Enregistrez ou annulez les modifications manuelles d’un jeu avant de l’utiliser dans une commande. Gardez Steam et la bibliothèque ouverts pendant l’exécution.
 
-## Compiler, tester et publier
-
-Avec le SDK .NET 8 et le pack de ciblage .NET Framework 4.8 :
+## Build et Releases
 
 ```powershell
 dotnet build SAM.Tests/SAM.Tests.csproj -c Release -p:Platform=x86
@@ -47,16 +41,10 @@ dotnet build SAM.Tests/SAM.Tests.csproj -c Release -p:Platform=x86
 dotnet build SAM.Launcher/SAM.Launcher.csproj -c Release -p:Platform=x86
 ```
 
-`upload/` contient l’application portable ; `dist/BetterSteamAchievementManager.exe` est le distributeur en un seul fichier. Compilez toujours l’application avant le distributeur pour embarquer la bonne version.
+Le workflow **Windows build** compile, exécute les tests Windows hors ligne, vérifie le `.exe` unique et fournit les captures dans ses artifacts. Un tag `v*` publie le `.exe`, le ZIP et les sommes SHA-256 dans une Release après réussite des tests. Les tests n’effectuent aucune écriture sur un compte Steam réel.
 
-Le workflow **Windows build** compile et exécute les régressions hors ligne sous Windows, vérifie l’extraction et la réparation du cache du distributeur, et fournit le `.exe`, le ZIP et les sommes SHA-256 en artifacts. Les captures des tests sont dans l’artifact **Windows-UI-test-results**. Pousser un tag `v*` publie ces trois fichiers dans une **GitHub Release**, seulement si les tests passent.
+`BetterSteamAchievementManager.exe --demo` ouvre une démonstration sans connexion Steam ni écriture de compte. Le panier de démonstration reste temporaire.
 
-`SAM.Picker.exe --demo` ou `BetterSteamAchievementManager.exe --demo` ouvre une bibliothèque de démonstration sans Steam ni écriture de compte. Les images de démonstration sont générées, pas des données de compte.
+Code et mentions de licence d’origine conservés dans [LICENSE.txt](LICENSE.txt) et les fichiers sources. Les images des jeux et Steam appartiennent à leurs titulaires.
 
-## Portée des vérifications
-
-Les régressions automatisées vérifient les sélections, les protections, les filtres, les changements en attente, les délais et confirmations via une API factice, les arrêts et erreurs, le redimensionnement, l’intégration réelle d’un processus de démonstration et son nettoyage. Elles ne valident pas une écriture sur un compte Steam réel. Une vérification manuelle sous Windows avec Steam reste nécessaire pour les différences de jeux, schémas, connexion et affichages à plusieurs facteurs de zoom. Aucun logiciel ne peut être garanti sans bug.
-
-## Licence et attributions
-
-Le logiciel d’origine est de Rick / gibbed, distribué sous licence zlib : [LICENSE.txt](LICENSE.txt). Les modifications sont celles de BetterSteamAchievementManager. Les icônes héritées proviennent principalement de [Fugue Icons](https://p.yusukekamiyamane.com/). Steam et les illustrations des jeux appartiennent à leurs titulaires. Ce projet n’est pas affilié à Valve.
+Merci à [gibbed](https://github.com/gibbed/SteamAchievementManager) pour le projet original Steam Achievement Manager.

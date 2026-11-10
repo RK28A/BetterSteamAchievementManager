@@ -25,7 +25,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Windows regression tests failed" }
       - name: Include license and documentation
         shell: pwsh
-        run: Copy-Item LICENSE.txt, README.md upload/
+        run: Copy-Item LICENSE.txt, README.md, THIRD_PARTY_NOTICES.txt upload/
       - name: Build single EXE distributor
         run: dotnet build SAM.Launcher/SAM.Launcher.csproj --configuration Release -p:Platform=x86
       - name: Verify single EXE extraction
@@ -48,7 +48,7 @@ jobs:
       - name: Create portable ZIP and checksums
         shell: pwsh
         run: |
-          Compress-Archive -Path upload/*.exe, upload/*.dll, upload/*.config, upload/LICENSE.txt, upload/README.md -DestinationPath dist/BetterSteamAchievementManager-Windows-x86.zip
+          Compress-Archive -Path upload/*.exe, upload/*.dll, upload/*.config, upload/LICENSE.txt, upload/README.md, upload/THIRD_PARTY_NOTICES.txt -DestinationPath dist/BetterSteamAchievementManager-Windows-x86.zip
           Get-ChildItem dist -File | Where-Object Extension -in '.exe', '.zip' | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
           } | Set-Content dist/SHA256SUMS.txt

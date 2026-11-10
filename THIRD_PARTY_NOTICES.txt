@@ -1,0 +1,8 @@
+Steam Achievement Manager original code: Rick (gibbed), zlib license.
+See LICENSE.txt and the original notices preserved in source files.
+
+Inherited Fugue Icons: Yusuke Kamiyamane, https://p.yusukekamiyamane.com/
+Creative Commons Attribution 3.0: https://creativecommons.org/licenses/by/3.0/
+
+Steam and game artwork remain the property of their respective owners.
+BetterSteamAchievementManager is not affiliated with Valve.

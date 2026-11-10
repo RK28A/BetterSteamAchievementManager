@@ -96,6 +96,7 @@ internal static class Program
         Directory.CreateDirectory("test-results");
         try
         {
+            OrderTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
@@ -213,6 +214,8 @@ internal static class Program
             using (var library = new SAM.Picker.GamePicker(null, true))
             {
                 library.Show(); Pump(200);
+                Check(library.FormBorderStyle == FormBorderStyle.None, "library has no native white window border");
+                Check(library.Controls.Cast<Control>().Any(c => c.AccessibleName == "Barre de fenêtre"), "library supplies dark caption with window actions");
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 3, "library renders games without Steam");
                 Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = "Portal";
                 Check(Field<SAM.Picker.MyListView>(library, "_GameListView").VirtualListSize == 2, "library search filters games");
@@ -233,6 +236,20 @@ internal static class Program
                     Invoke(library, "OpenGame", 2); Pump(200);
                     Check(sessions.Count == 2 && sessions[620].Process.Id == first.Process.Id, "switching games reuses the existing session");
                     Capture(library, "test-results/library.png", first.Panel, FindEmbedded(first.Panel, first.Process));
+                    var cartStore = new SAM.API.Orders.JsonStore<SAM.API.Orders.OrderCart>(Field<string>(library, "_CartPath"));
+                    SAM.API.Orders.OrderPaths.Add(cartStore, new SAM.API.Orders.OrderGroup { GameId = 620, Name = "Portal 2", Achievements = new System.Collections.Generic.List<SAM.API.Orders.OrderAchievement> { new() { Id = "A", Name = "Meilleur ami de l’homme" }, new() { Id = "B", Name = "Collectionneur" } } });
+                    SAM.API.Orders.OrderPaths.Add(cartStore, new SAM.API.Orders.OrderGroup { GameId = 400, Name = "Portal", Achievements = new System.Collections.Generic.List<SAM.API.Orders.OrderAchievement> { new() { Id = "C", Name = "Le début de l’aventure" } } });
+                    Field<Button>(library, "_OrderButton").PerformClick(); Pump(200);
+                    Check(Field<SAM.Picker.OrderRows>(library, "_OrderRows").Items.Count == 5, "cart renders game groups and achievements");
+                    var editor = Field<SAM.Picker.RangeEditor>(library, "_SuccessRange");
+                    Field<ComboBox>(editor, "_Unit").SelectedIndex = 1;
+                    Field<TrackBar>(editor, "_Min").Value = 2;
+                    Field<TrackBar>(editor, "_Max").Value = 8;
+                    Check(cartStore.Read().Games[0].Delay.Unit == SAM.API.Orders.TimeUnit.Hours && cartStore.Read().Games[0].Delay.Minimum == 2 && cartStore.Read().Games[0].Delay.Maximum == 8, "cart sliders persist per-game hour ranges");
+                    Field<CheckBox>(library, "_BetweenGames").Checked = true;
+                    Check(cartStore.Read().BetweenGames, "cart enables the inter-game timer");
+                    Check(!Field<Button>(library, "_RunOrder").Enabled, "cart demonstration cannot execute Steam writes");
+                    Capture(library, "test-results/achievement-order.png");
                 }
                 finally
                 {

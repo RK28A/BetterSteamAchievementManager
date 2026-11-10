@@ -135,7 +135,7 @@ namespace SAM.Game
             FormClosing += (_, e) =>
             {
                 // Hosted views are closed by their owning library after its single confirmation.
-                if (FormBorderStyle == FormBorderStyle.None || _Demo) return;
+                if (_Embedded || _Demo) return;
                 if ((HasPendingChanges || _QueueRunning || _SavingAchievement != null || _ManualSaving) &&
                     MessageBox.Show(this, "Fermer ce jeu et abandonner les modifications ou la file en cours ?", "Fermer", MessageBoxButtons.YesNo) != DialogResult.Yes) e.Cancel = true;
             };
@@ -144,7 +144,7 @@ namespace SAM.Game
 
         internal void StageSelected(bool achieved)
         {
-            if (!_StatsReady || _ManualSaving || _QueueRunning || _SavingAchievement != null) return;
+            if (!_StatsReady || _ManualSaving || _CartSaving || _QueueRunning || _SavingAchievement != null) return;
             foreach (ListViewItem item in _AchievementListView.Items)
                 if (item.Tag is Stats.AchievementInfo info && (info.Permission & 3) == 0 && _Cards.SelectedIds.Contains(info.Id)) item.Checked = achieved;
             _Cards.Invalidate();
