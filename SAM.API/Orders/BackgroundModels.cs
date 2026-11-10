@@ -72,7 +72,7 @@ namespace SAM.API.Orders
         public static void Validate(BackgroundState state)
         {
             if (state.Version != 1 || state.Sessions == null || state.Games == null || state.ParallelLimit < 1 || state.ParallelLimit > OrderLimit ||
-                state.Sessions.Count(s => s.Resume) > SessionLimit || state.Sessions.Any(s => s == null || s.GameId == 0 || string.IsNullOrWhiteSpace(s.Token) ||
+                state.Sessions.Any(s => s == null) || state.Sessions.Count(s => s.Resume && !s.Order) > SessionLimit || state.Sessions.Count(s => s.Resume && s.Order) > OrderLimit || state.Sessions.Any(s => s == null || s.GameId == 0 || string.IsNullOrWhiteSpace(s.Token) ||
                 s.Token.Length != 32 || s.Token.Any(c => !Uri.IsHexDigit(c)) || s.GoalSeconds <= 0 || s.GoalSeconds > MaxHours * 3600 || double.IsNaN(s.GoalSeconds) ||
                 s.ElapsedSeconds < 0 || double.IsNaN(s.ElapsedSeconds) || double.IsInfinity(s.ElapsedSeconds)) ||
                 state.Sessions.GroupBy(s => s.GameId).Any(g => g.Count() > 1) || state.Games.Any(g => g == null) || state.Games.GroupBy(g => g.GameId).Any(g => g.Count() > 1) ||

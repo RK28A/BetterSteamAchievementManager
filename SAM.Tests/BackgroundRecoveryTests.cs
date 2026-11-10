@@ -16,6 +16,13 @@ internal static class BackgroundRecoveryTests
     private static void Pump(int milliseconds) { var clock = Stopwatch.StartNew(); while (clock.ElapsedMilliseconds < milliseconds) { Application.DoEvents(); Thread.Sleep(10); } }
     internal static void Run(Action<bool, string> check)
     {
+        foreach (int exitCode in new[] { 0, 1 })
+        {
+            using var child = Process.Start(new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location, "--exit-helper " + exitCode) { UseShellExecute = false, CreateNoWindow = true });
+            long started = child.StartTime.ToUniversalTime().Ticks;
+            check(!RecoverySupervisor.WaitForCrash(child.Id, started + 1), "crash supervisor ignores a reused or mismatched PID");
+            check(RecoverySupervisor.WaitForCrash(child.Id, started) == (exitCode != 0), exitCode == 0 ? "supervisor does not relaunch a clean exit" : "supervisor detects an abnormal process exit for recovery");
+        }
         string folder = Path.Combine(Path.GetTempPath(), "BSAM-Resume-" + Guid.NewGuid().ToString("N"));
         GamePicker first = null, second = null;
         try
