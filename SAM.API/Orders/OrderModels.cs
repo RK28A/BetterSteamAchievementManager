@@ -64,6 +64,7 @@ namespace SAM.API.Orders
         public string GameName { get; set; }
         public string AchievementName { get; set; }
         public string Detail { get; set; }
+        public override string ToString() => Utc.ToLocalTime().ToString("g") + " · " + Event + " · " + GameName + " · " + AchievementName + " · " + Detail;
     }
     internal sealed class OrderCommand
     {

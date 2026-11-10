@@ -89,10 +89,10 @@ namespace SAM.Picker
             _RunOrder = new Button { Text = "Démarrer", AutoSize = true, Margin = new Padding(3) };
             _RunOrder.Click += (_, _) => StartOrder();
             _StopOrder = new Button { Text = "Arrêter", AutoSize = true, Enabled = false, Margin = new Padding(3) };
-            _StopOrder.Click += (_, _) => StopOrder();
+            _StopOrder.Click += (_, _) => TryOrderAction(StopOrder);
             var run = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(10, 4, 10, 4) };
             _PauseOrder = new Button { Text = "Pause", AutoSize = true, Enabled = false, Margin = new Padding(3) };
-            _PauseOrder.Click += (_, _) => PauseOrder();
+            _PauseOrder.Click += (_, _) => TryOrderAction(PauseOrder);
             run.Controls.Add(_RunOrder); run.Controls.Add(_PauseOrder); run.Controls.Add(_StopOrder);
             _OrderEstimate = SteamTheme.Label("", 9, SteamTheme.Muted);
             _OrderEstimate.Dock = DockStyle.Bottom; _OrderEstimate.AutoSize = false; _OrderEstimate.Height = 64; _OrderEstimate.Padding = new Padding(12, 4, 12, 4);
@@ -112,6 +112,16 @@ namespace SAM.Picker
             RefreshOrderCart();
         }
 
+        private void TryOrderAction(Action action)
+        {
+            try { action(); }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidOperationException)
+            {
+                _Runner.Fail(); ReleaseOrderLease();
+                _OrderMessage = "Commande suspendue : " + e.Message;
+                _OrderStatus.Text = _OrderMessage;
+            }
+        }
         private void EditOrder(Action edit)
         {
             try
@@ -141,7 +151,7 @@ namespace SAM.Picker
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             { _OrderStatus.Text = e.Message; _RunOrder.Enabled = _OrderActions.Enabled = false; return; }
             _OrderButton.Text = "Achievement Order  ·  " + cart.Count;
-            _OrderCount.Text = $"{cart.Games.Count} jeux · {cart.Count} succès · un seul panier";
+            _OrderCount.Text = $"{cart.Games.Count} jeux · {cart.Count} succès · glissez les jeux et les succès pour les réorganiser";
             string signature = string.Join("|", cart.Games.SelectMany(g => new[] { "game:" + g.GameId }.Concat(g.Achievements.Select(a => a.Id + ":" + a.Status))));
             if (signature != _RowSignature) { _RowSignature = signature; _OrderRows.Bind(cart); if (_OrderRows.SelectedIndex < 0 && _OrderRows.Items.Count > 0) _OrderRows.SelectedIndex = 0; }
             _BindingOrder = true;

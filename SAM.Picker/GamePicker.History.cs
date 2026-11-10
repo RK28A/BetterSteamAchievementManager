@@ -32,7 +32,11 @@ namespace SAM.Picker
             _HistoryPanel.Controls.Add(_HistoryRows); _HistoryPanel.Controls.Add(caption); _HistoryPanel.Controls.Add(title);
             _GameHost.Controls.Add(_HistoryPanel); _HistoryPanel.SendToBack();
             var button = new Button { Text = "Historique", Dock = DockStyle.Right, Width = 130 };
-            button.Click += (_, _) => { RefreshHistory(_OrderStore.Read()); _HistoryPanel.BringToFront(); };
+            button.Click += (_, _) =>
+            {
+                try { RefreshHistory(_OrderStore.Read()); _HistoryPanel.BringToFront(); }
+                catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException) { MessageBox.Show(this, e.Message, "Historique indisponible"); }
+            };
             bar.Controls.Add(button);
             SteamTheme.Apply(_HistoryPanel); SteamTheme.Apply(button);
         }

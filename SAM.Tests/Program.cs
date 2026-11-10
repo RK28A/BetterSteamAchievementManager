@@ -279,7 +279,23 @@ internal static class Program
                     var hostPanel = Field<Panel>(library, "_GameHost");
                     Check(ChildWindowFromPointEx(hostPanel.Handle, new Point(20, 20), 1) == orderPanel.Handle, "cart is actually in front of embedded game windows");
                     Check(Field<Label>(library, "_OrderEstimate").Text.Contains("Fin estimée"), "planning is visible inside the cart");
-                    Check(Field<SAM.Picker.OrderRows>(library, "_OrderRows").AllowDrop, "stopped cart exposes drag and drop");
+                    var rows = Field<SAM.Picker.OrderRows>(library, "_OrderRows");
+                    Check(rows.AllowDrop, "stopped cart exposes drag and drop");
+                    rows.TopIndex = 0;
+                    var dragSource = (SAM.Picker.OrderRows.Row)rows.Items[2];
+                    var targetBounds = rows.GetItemRectangle(1);
+                    var targetPoint = rows.PointToScreen(new Point(20, targetBounds.Top + 8));
+                    var drag = new DragEventArgs(new DataObject(dragSource), 1, targetPoint.X, targetPoint.Y, DragDropEffects.Move, DragDropEffects.None);
+                    Invoke(rows, "OnDragOver", drag);
+                    Check(drag.Effect == DragDropEffects.Move, "cart drag target accepts an achievement from the same game");
+                    Invoke(rows, "OnDragDrop", drag);
+                    Check(cartStore.Read().Games[0].Achievements[0].Id == "B", "dropping an achievement persists the new order through the UI");
+                    rows.TopIndex = 0;
+                    var groupSource = rows.Items.Cast<SAM.Picker.OrderRows.Row>().First(r => r.Game.GameId == 400 && r.Achievement == null);
+                    targetPoint = rows.PointToScreen(new Point(20, 8));
+                    drag = new DragEventArgs(new DataObject(groupSource), 1, targetPoint.X, targetPoint.Y, DragDropEffects.Move, DragDropEffects.None);
+                    Invoke(rows, "OnDragOver", drag); Invoke(rows, "OnDragDrop", drag);
+                    Check(cartStore.Read().Games[0].GameId == 400, "dropping a game moves its whole group through the UI");
                     cartStore.Update(cart => SAM.API.Orders.OrderPlanning.Record(cart, "Succès", "Confirmé par Steam", new SAM.API.Orders.OrderStep { GameId = 620, GameName = "Portal 2", Achievement = new() { Id = "A", Name = "Meilleur ami de l’homme" } }));
                     Invoke(library, "RefreshOrderCart");
                     Check(Field<ListBox>(library, "_HistoryRows").Items.Count == 1, "history view shows persisted order events");
@@ -297,6 +313,15 @@ internal static class Program
                     Check(Field<SAM.API.Orders.JsonStore<SAM.API.Orders.LibraryPreferences>>(library, "_PreferencesStore").Read().Favorites.Contains(620), "favorites survive preference reload");
                     Pump(2200);
                     Check(Field<SAM.API.Orders.JsonStore<SAM.API.Orders.LibraryProgress>>(library, "_ProgressStore").Read().Games.Any(g => g.GameId == 620 && g.Unlocked == 2 && g.Total == 7), "library receives confirmed achievement progress from its game process");
+                    for (int i = 0; i < 8; i++)
+                    {
+                        ((ToolStripButton)filters.Items[0]).Checked = !((ToolStripButton)filters.Items[0]).Checked;
+                        Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = i % 2 == 0 ? "missing game" : "";
+                        Pump(20);
+                    }
+                    Field<ToolStripTextBox>(library, "_SearchGameTextBox").Text = "";
+                    Check(Field<ListView>(library, "_GameListView").VirtualListSize == Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames").Count, "repeated library filter changes keep native indices synchronized");
+                    Invoke(library, "OpenGame", 0); Pump(200);
                     CaptureScreen(library, "test-results/library-favorites.png");
                 }
                 finally
