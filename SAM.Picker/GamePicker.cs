@@ -43,6 +43,7 @@ namespace SAM.Picker
 
         private readonly Dictionary<uint, GameInfo> _Games;
         private readonly List<GameInfo> _FilteredGames;
+        private bool _RefreshingGames;
 
         private readonly object _LogoLock;
         private readonly HashSet<string> _LogosAttempting;
@@ -163,7 +164,7 @@ namespace SAM.Picker
             var wantMods = this._FilterModsMenuItem.Checked == true;
             var wantJunk = this._FilterJunkMenuItem.Checked == true;
 
-            this._FilteredGames.Clear();
+            var filtered = new List<GameInfo>();
             foreach (var info in this._Games.Values.OrderByDescending(gi => _LibraryPreferences.Favorites.Contains(gi.Id)).ThenBy(gi => gi.Name))
             {
                 if (nameSearch != null &&
@@ -187,22 +188,33 @@ namespace SAM.Picker
                     continue;
                 }
 
-                this._FilteredGames.Add(info);
+                filtered.Add(info);
             }
 
-            this._GameListView.SelectedIndices.Clear();
-            this._GameListView.VirtualListSize = this._FilteredGames.Count;
+            // Native ListView notifications can re-enter RetrieveVirtualItem during selection
+            // changes. Keep the old model alive until Windows has released its old indices.
+            _RefreshingGames = true;
+            _GameListView.BeginUpdate();
+            try
+            {
+                _GameListView.SelectedIndices.Clear();
+                _GameListView.VirtualListSize = 0;
+                _FilteredGames.Clear(); _FilteredGames.AddRange(filtered);
+                _GameListView.VirtualListSize = _FilteredGames.Count;
+                int active = _FilteredGames.FindIndex(g => g.Id == _ActiveGameId);
+                if (active >= 0) _GameListView.SelectedIndices.Add(active);
+            }
+            finally { _GameListView.EndUpdate(); _RefreshingGames = false; }
             this._GameListView.Invalidate();
             this._LibraryCount.Text = "JEUX  (" + this._FilteredGames.Count + ")";
             this._PickerStatusLabel.Text =
                 $"{this._FilteredGames.Count} jeux affichés · {this._Games.Count} jeux dans la bibliothèque";
 
-            int active = this._FilteredGames.FindIndex(g => g.Id == this._ActiveGameId);
-            if (active >= 0) this._GameListView.SelectedIndices.Add(active);
         }
 
         private void OnGameListViewRetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
         {
+            if (e.ItemIndex < 0 || e.ItemIndex >= _FilteredGames.Count) { e.Item = new ListViewItem(""); return; }
             var info = this._FilteredGames[e.ItemIndex];
             e.Item = info.Item = new()
             {
@@ -512,6 +524,7 @@ namespace SAM.Picker
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
         {
             e.DrawDefault = false;
+            if (_RefreshingGames || e.ItemIndex < 0 || e.ItemIndex >= _FilteredGames.Count) return;
             bool selected = e.Item.Selected;
             using (var brush = new SolidBrush(selected ? SAM.UI.SteamTheme.Surface : SAM.UI.SteamTheme.Sidebar))
                 e.Graphics.FillRectangle(brush, e.Bounds);

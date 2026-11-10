@@ -46,7 +46,7 @@ namespace SAM.Picker
 
         private void OpenGame(int index)
         {
-            if (_ClosingLibrary || index < 0 || index >= _FilteredGames.Count) return;
+            if (_ClosingLibrary || _RefreshingGames || index < 0 || index >= _FilteredGames.Count) return;
             var game = _FilteredGames[index];
             _ActiveGameId = game.Id;
             EnsureSession(game, true);
