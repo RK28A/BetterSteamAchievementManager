@@ -115,6 +115,7 @@ internal static class Program
             UpgradeTests.Run(Check);
             PlaytimeTests.Run(Check);
             BackgroundTests.Run(Check);
+            BackgroundRecoveryTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {

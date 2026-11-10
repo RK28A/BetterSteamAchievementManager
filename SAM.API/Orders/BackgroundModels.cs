@@ -73,10 +73,12 @@ namespace SAM.API.Orders
         {
             if (state.Version != 1 || state.Sessions == null || state.Games == null || state.ParallelLimit < 1 || state.ParallelLimit > OrderLimit ||
                 state.Sessions.Count(s => s.Resume) > SessionLimit || state.Sessions.Any(s => s == null || s.GameId == 0 || string.IsNullOrWhiteSpace(s.Token) ||
-                s.Token.Any(c => !Uri.IsHexDigit(c)) || s.GoalSeconds <= 0 || s.GoalSeconds > MaxHours * 3600 || double.IsNaN(s.GoalSeconds) ||
+                s.Token.Length != 32 || s.Token.Any(c => !Uri.IsHexDigit(c)) || s.GoalSeconds <= 0 || s.GoalSeconds > MaxHours * 3600 || double.IsNaN(s.GoalSeconds) ||
                 s.ElapsedSeconds < 0 || double.IsNaN(s.ElapsedSeconds) || double.IsInfinity(s.ElapsedSeconds)) ||
-                state.Sessions.GroupBy(s => s.GameId).Any(g => g.Count() > 1) || state.Games.GroupBy(g => g.GameId).Any(g => g.Count() > 1) ||
+                state.Sessions.GroupBy(s => s.GameId).Any(g => g.Count() > 1) || state.Games.Any(g => g == null) || state.Games.GroupBy(g => g.GameId).Any(g => g.Count() > 1) ||
                 state.Games.Any(g => g == null || g.GameId == 0 || g.Achievements == null || g.TargetHours <= 0 || g.TargetHours > MaxHours || double.IsNaN(g.TargetHours) ||
+                double.IsNaN(g.WindowStartHours) || double.IsNaN(g.WindowEndHours) || g.WindowStartHours < 0 || g.WindowEndHours > MaxHours ||
+                (g.Ready && (g.WindowEndHours <= g.WindowStartHours || g.WindowEndHours > g.TargetHours - (g.SteamHours ?? 0))) ||
                 g.Achievements.Any(a => a == null || string.IsNullOrWhiteSpace(a.Id) || double.IsNaN(a.AtSeconds) || a.AtSeconds < 0 || a.AtSeconds > MaxHours * 3600)))
                 throw new System.IO.InvalidDataException("La sauvegarde des sessions est invalide. Elle est conservée pour récupération.");
         }

@@ -36,7 +36,7 @@ namespace SAM.Picker
         private void InitializeOrderCart()
         {
             string session = Path.Combine(Path.GetTempPath(), "BSAM-Session-" + Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N"));
-            _CartPath = _Demo ? Path.Combine(session, "demo-cart.json") : OrderPaths.Cart;
+            _CartPath = _Demo ? Path.Combine(_DemoStorage ?? session, "demo-cart.json") : OrderPaths.Cart;
             _CommandPath = Path.Combine(session, "command.json");
             _OrderStore = new JsonStore<OrderCart>(_CartPath);
             _Commands = new JsonStore<OrderCommand>(_CommandPath);
