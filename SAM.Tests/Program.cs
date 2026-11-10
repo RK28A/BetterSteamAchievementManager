@@ -96,9 +96,13 @@ internal static class Program
         Directory.CreateDirectory("test-results");
         try
         {
+            Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
-                manager.Show(); Pump(200);
+                Console.WriteLine("START achievement view display");
+                manager.Show();
+                Console.WriteLine("START achievement view message loop");
+                Pump(200);
                 var cards = manager._Cards;
                 Check(cards.Items.Count == 7, "all demo achievements render");
                 Check(cards.VisibleAchievements.Count(i => i.IsAchieved) == 2, "confirmed Steam state is separate");

@@ -29,7 +29,7 @@ namespace SAM.UI
         public static void Apply(Control root)
         {
             root.BackColor = root is TextBoxBase || root is ListBox ? Sidebar : Background;
-            if (root is not Label || root.ForeColor == SystemColors.ControlText) root.ForeColor = Text;
+            if (root is not System.Windows.Forms.Label || root.ForeColor == SystemColors.ControlText) root.ForeColor = Text;
             if (root is Form form) { root.Font = new Font("Segoe UI", 10F); form.HandleCreated += (_, _) => DarkTitle(form); }
             if (root is Button b)
             {

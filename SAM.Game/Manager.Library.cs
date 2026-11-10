@@ -31,6 +31,9 @@ namespace SAM.Game
             MinimumSize = new Size(740, 540);
             _MainTabControl.Dock = DockStyle.Fill;
             _AchievementsTabPage.Controls.Remove(_AchievementListView);
+            // The backing ListView is no longer interactive; enforce permissions at staging and write boundaries.
+            _AchievementListView.ItemCheck -= OnCheckAchievement;
+            _ = _AchievementListView.Handle;
             _Cards = new AchievementCards { Icons = _AchievementImageList };
             _Cards.SelectionEdited += (_, _) => UpdateSelectionSummary();
             _AchievementsTabPage.Controls.Add(_Cards);

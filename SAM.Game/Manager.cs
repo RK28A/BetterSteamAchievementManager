@@ -616,7 +616,7 @@ namespace SAM.Game
             foreach (ListViewItem item in this._AchievementListView.Items)
             {
                 if (item.Tag is not Stats.AchievementInfo achievementInfo ||
-                    achievementInfo.IsAchieved == item.Checked)
+                    (achievementInfo.Permission & 3) != 0 || achievementInfo.IsAchieved == item.Checked)
                 {
                     continue;
                 }
