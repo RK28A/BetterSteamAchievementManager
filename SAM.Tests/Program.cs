@@ -90,6 +90,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Directory.CreateDirectory("test-results");

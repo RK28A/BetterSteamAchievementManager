@@ -37,6 +37,9 @@ namespace SAM.Game.Stats
         public string Description;
         public ListViewItem Item;
 
+        // Altered source: descriptive text for keyboard and assistive navigation.
+        public override string ToString() => this.Name + (this.IsAchieved ? " · Débloqué" : " · Non débloqué");
+
         #region public int ImageIndex;
         public int ImageIndex
         {
