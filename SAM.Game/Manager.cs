@@ -52,8 +52,9 @@ namespace SAM.Game
 
         //private API.Callback<APITypes.UserStatsStored> UserStatsStoredCallback;
 
-        public Manager(long gameId, API.Client client)
+        public Manager(long gameId, API.Client client, bool demo = false)
         {
+            this._Demo = demo;
             this.InitializeComponent();
 
             this._MainTabControl.SelectedTab = this._AchievementsTabPage;
@@ -88,7 +89,7 @@ namespace SAM.Game
 
             this._IconDownloader.DownloadDataCompleted += this.OnIconDownload;
 
-            string name = this._SteamClient.SteamApps001.GetAppData((uint)this._GameId, "name");
+            string name = demo ? (gameId == 620 ? "Portal 2" : gameId == 400 ? "Portal" : "Counter-Strike 2") : this._SteamClient.SteamApps001.GetAppData((uint)this._GameId, "name");
             if (name != null)
             {
                 base.Text += " | " + name;
@@ -98,13 +99,17 @@ namespace SAM.Game
                 base.Text += " | " + this._GameId.ToString(CultureInfo.InvariantCulture);
             }
 
-            this._UserStatsReceivedCallback = client.CreateAndRegisterCallback<API.Callbacks.UserStatsReceived>();
-            this._UserStatsReceivedCallback.OnRun += this.OnUserStatsReceived;
+            if (!demo)
+            {
+                this._UserStatsReceivedCallback = client.CreateAndRegisterCallback<API.Callbacks.UserStatsReceived>();
+                this._UserStatsReceivedCallback.OnRun += this.OnUserStatsReceived;
+            }
 
             //this.UserStatsStoredCallback = new API.Callback(1102, new API.Callback.CallbackFunction(this.OnUserStatsStored));
 
             this.InitializeScheduler();
-            this.RefreshStats();
+            this.InitializeLibraryView(name ?? this._GameId.ToString(CultureInfo.InvariantCulture));
+            if (demo) this.InitializeDemo(); else this.RefreshStats();
         }
 
         private void AddAchievementIcon(Stats.AchievementInfo info, Image icon)
@@ -122,6 +127,7 @@ namespace SAM.Game
 
         private void OnIconDownload(object sender, DownloadDataCompletedEventArgs e)
         {
+            if (IsDisposed || Disposing) return;
             if (e.Error == null && e.Cancelled == false)
             {
                 var info = (Stats.AchievementInfo)e.UserState;
@@ -132,7 +138,8 @@ namespace SAM.Game
                     using (MemoryStream stream = new())
                     {
                         stream.Write(e.Result, 0, e.Result.Length);
-                        bitmap = new(stream);
+                        using var decoded = new Bitmap(stream);
+                        bitmap = new(decoded);
                     }
                 }
                 catch (Exception)
@@ -141,7 +148,8 @@ namespace SAM.Game
                 }
 
                 this.AddAchievementIcon(info, bitmap);
-                this._AchievementListView.Update();
+                bitmap?.Dispose();
+                this._Cards?.Invalidate();
             }
 
             this.DownloadNextIcon();
@@ -217,7 +225,7 @@ namespace SAM.Game
                     return false;
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return false;
             }
@@ -367,17 +375,18 @@ namespace SAM.Game
 
         private void OnUserStatsReceived(APITypes.UserStatsReceived param)
         {
+            if (param.GameId != (ulong)this._GameId) return;
             if (param.Result != 1)
             {
                 this._GameStatusLabel.Text = $"Error while retrieving stats: {TranslateError(param.Result)}";
-                this.EnableInput();
+                this._ReloadButton.Enabled = true;
                 return;
             }
 
             if (this.LoadUserGameStatsSchema() == false)
             {
-                this._GameStatusLabel.Text = "Failed to load schema.";
-                this.EnableInput();
+                this._GameStatusLabel.Text = "Schéma Steam indisponible. Lancez le jeu une fois puis actualisez.";
+                this._ReloadButton.Enabled = true;
                 return;
             }
 
@@ -388,7 +397,7 @@ namespace SAM.Game
             catch (Exception e)
             {
                 this._GameStatusLabel.Text = "Error when handling achievements retrieval.";
-                this.EnableInput();
+                this._ReloadButton.Enabled = true;
                 MessageBox.Show(
                     "Error when handling achievements retrieval:\n" + e,
                     "Error",
@@ -404,7 +413,7 @@ namespace SAM.Game
             catch (Exception e)
             {
                 this._GameStatusLabel.Text = "Error when handling stats retrieval.";
-                this.EnableInput();
+                this._ReloadButton.Enabled = true;
                 MessageBox.Show(
                     "Error when handling stats retrieval:\n" + e,
                     "Error",
@@ -413,14 +422,16 @@ namespace SAM.Game
                 return;
             }
 
-            this._GameStatusLabel.Text = $"Retrieved {this._AchievementListView.Items.Count} achievements and {this._StatisticsDataGridView.Rows.Count} statistics.";
+            this._GameStatusLabel.Text = this._LastStoreMessage ?? $"{this._AchievementListView.Items.Count} succès · {this._Statistics.Count} statistiques";
+            this._LastStoreMessage = null;
             this.EnableInput();
         }
 
         private void RefreshStats()
         {
-            this._AchievementListView.Items.Clear();
-            this._StatisticsDataGridView.Rows.Clear();
+            if (_Demo) return;
+            this.DisableInput();
+            this._IconQueue.Clear();
 
             var steamId = this._SteamClient.SteamUser.GetSteamId();
 
@@ -429,11 +440,12 @@ namespace SAM.Game
             var callHandle = this._SteamClient.SteamUserStats.RequestUserStats(steamId);
             if (callHandle == API.CallHandle.Invalid)
             {
-                MessageBox.Show(this, "Failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this._GameStatusLabel.Text = "Impossible de demander les statistiques Steam.";
+                this._ReloadButton.Enabled = true;
                 return;
             }
 
-            this._GameStatusLabel.Text = "Retrieving stat information...";
+            this._GameStatusLabel.Text = "Récupération des succès et statistiques…";
             this.DisableInput();
         }
 
@@ -441,18 +453,11 @@ namespace SAM.Game
 
         private void GetAchievements()
         {
-            var textSearch = this._MatchingStringTextBox.Text.Length > 0
-                ? this._MatchingStringTextBox.Text
-                : null;
-
             this._IsUpdatingAchievementList = true;
 
             this._AchievementListView.Items.Clear();
             this._AchievementListView.BeginUpdate();
             //this.Achievements.Clear();
-
-            bool wantLocked = this._DisplayLockedOnlyButton.Checked == true;
-            bool wantUnlocked = this._DisplayUnlockedOnlyButton.Checked == true;
 
             foreach (var def in this._AchievementDefinitions)
             {
@@ -467,25 +472,6 @@ namespace SAM.Game
                     out var unlockTime) == false)
                 {
                     continue;
-                }
-
-                bool wanted = (wantLocked == false && wantUnlocked == false) || isAchieved switch
-                {
-                    true => wantUnlocked,
-                    false => wantLocked,
-                };
-                if (wanted == false)
-                {
-                    continue;
-                }
-
-                if (textSearch != null)
-                {
-                    if (def.Name.IndexOf(textSearch, StringComparison.OrdinalIgnoreCase) < 0 &&
-                        def.Description.IndexOf(textSearch, StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        continue;
-                    }
                 }
 
                 Stats.AchievementInfo info = new()
@@ -535,6 +521,8 @@ namespace SAM.Game
             this._AchievementListView.EndUpdate();
             this._IsUpdatingAchievementList = false;
 
+            this._Cards.SelectedIds.IntersectWith(this._AchievementDefinitions.Select(d => d.Id));
+            this.RefilterCards();
             this.DownloadNextIcon();
         }
 
@@ -619,7 +607,6 @@ namespace SAM.Game
                     continue;
                 }
 
-                achievementInfo.IsAchieved = item.Checked;
                 achievements.Add(achievementInfo);
             }
 
@@ -630,7 +617,7 @@ namespace SAM.Game
 
             foreach (var info in achievements)
             {
-                if (this._SteamClient.SteamUserStats.SetAchievement(info.Id, info.IsAchieved) == false)
+                if (this._SteamClient.SteamUserStats.SetAchievement(info.Id, info.Item.Checked) == false)
                 {
                     MessageBox.Show(
                         this,
@@ -701,6 +688,7 @@ namespace SAM.Game
 
         private void DisableInput()
         {
+            this.SetViewInput(false);
             this.SetSchedulerReady(false);
             this._ReloadButton.Enabled = false;
             this._StoreButton.Enabled = false;
@@ -708,6 +696,7 @@ namespace SAM.Game
 
         private void EnableInput()
         {
+            this.SetViewInput(true);
             this.SetSchedulerReady(true);
             this._ReloadButton.Enabled = true;
             this._StoreButton.Enabled = true;
@@ -716,12 +705,16 @@ namespace SAM.Game
         private void OnTimer(object sender, EventArgs e)
         {
             this._CallbackTimer.Enabled = false;
-            this._SteamClient.RunCallbacks(false);
+            try { this._SteamClient.RunCallbacks(false); }
+            finally { this._CallbackTimer.Enabled = true; }
+            if (this._ManualSaving && this._ManualClock.Elapsed > TimeSpan.FromSeconds(60))
+                this._GameStatusLabel.Text = "Enregistrement non confirmé. Écritures bloquées jusqu’à la réponse de Steam ou au redémarrage.";
             this._CallbackTimer.Enabled = true;
         }
 
         private void OnRefresh(object sender, EventArgs e)
         {
+            if (HasPendingChanges && MessageBox.Show(this, "Actualiser et abandonner les modifications en attente ?", "Actualiser", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
             this.RefreshStats();
         }
 
@@ -767,33 +760,20 @@ namespace SAM.Game
 
         private void OnStore(object sender, EventArgs e)
         {
+            if (_Demo || !_StatsReady || _ManualSaving || _QueueRunning || _SavingAchievement != null) return;
+            this._StatisticsDataGridView.EndEdit();
+            if (!this.ValidateChildren()) return;
+            this.DisableInput();
             int achievements = this.StoreAchievements();
-            if (achievements < 0)
-            {
-                this.RefreshStats();
-                return;
-            }
-
-            int stats = this.StoreStatistics();
-            if (stats < 0)
-            {
-                this.RefreshStats();
-                return;
-            }
-
-            if (this.Store() == false)
-            {
-                this.RefreshStats();
-                return;
-            }
-
-            MessageBox.Show(
-                this,
-                $"Stored {achievements} achievements and {stats} statistics.",
-                "Information",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-            this.RefreshStats();
+            int stats = achievements >= 0 ? this.StoreStatistics() : -1;
+            if (achievements < 0 || stats < 0) { this.RefreshStats(); return; }
+            if (achievements == 0 && stats == 0) { this.EnableInput(); return; }
+            this._ManualAchievementCount = achievements;
+            this._ManualStatCount = stats;
+            this._ManualSaving = true;
+            this._ManualClock.Restart();
+            this._GameStatusLabel.Text = "Enregistrement envoyé · attente de confirmation Steam…";
+            if (!this.Store()) { this._ManualSaving = false; this.RefreshStats(); }
         }
 
         private void OnStatDataError(object sender, DataGridViewDataErrorEventArgs e)
@@ -900,7 +880,7 @@ namespace SAM.Game
                 this._DisplayLockedOnlyButton.Checked = false;
             }
 
-            this.GetAchievements();
+            this.RefilterCards();
         }
 
         private void OnDisplayCheckedOnly(object sender, EventArgs e)
@@ -910,12 +890,12 @@ namespace SAM.Game
                 this._DisplayUnlockedOnlyButton.Checked = false;
             }
 
-            this.GetAchievements();
+            this.RefilterCards();
         }
 
         private void OnFilterUpdate(object sender, KeyEventArgs e)
         {
-            this.GetAchievements();
+            this.RefilterCards();
         }
     }
 }

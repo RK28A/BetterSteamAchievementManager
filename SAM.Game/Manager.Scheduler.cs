@@ -66,8 +66,11 @@ namespace SAM.Game
             this._StopQueue.Click += (_, _) => this.StopQueue("Arrêt demandé. Les succès déjà envoyés restent débloqués.");
             this._QueueTimer = new Timer(this.components) { Interval = 250 };
             this._QueueTimer.Tick += this.TickQueue;
-            this._QueueStoredCallback = this._SteamClient.CreateAndRegisterCallback<API.Callbacks.UserStatsStored>();
-            this._QueueStoredCallback.OnRun += this.OnQueueStored;
+            if (!this._Demo)
+            {
+                this._QueueStoredCallback = this._SteamClient.CreateAndRegisterCallback<API.Callbacks.UserStatsStored>();
+                this._QueueStoredCallback.OnRun += this.OnQueueStored;
+            }
             this.FormClosing += (_, _) => { this._QueueTimer.Stop(); this._QueueRunning = false; };
         }
 
@@ -81,15 +84,15 @@ namespace SAM.Game
         {
             this._QueueReady = ready;
             if (this._StartQueue == null) return;
-            this._StartQueue.Enabled = ready && !this._QueueRunning && this._SavingAchievement == null;
+            this._StartQueue.Enabled = ready && !this._Demo && !this._ManualSaving && !this._QueueRunning && this._SavingAchievement == null;
             if (!ready || this._QueueRunning || this._SavingAchievement != null) return;
             var selected = this._QueueChoices.CheckedItems.Cast<Stats.AchievementDefinition>().Select(x => x.Id).ToList();
             this._QueueChoices.Items.Clear();
             foreach (var def in this._AchievementDefinitions)
             {
                 if (string.IsNullOrEmpty(def.Id) || (def.Permission & 3) != 0) continue;
-                if (this._SteamClient.SteamUserStats.GetAchievementAndUnlockTime(def.Id, out bool achieved, out _) && !achieved)
-                    this._QueueChoices.Items.Add(def, selected.Contains(def.Id));
+                var info = this._AchievementListView.Items.Cast<ListViewItem>().Select(i => i.Tag).OfType<Stats.AchievementInfo>().FirstOrDefault(i => i.Id == def.Id);
+                if (info != null && !info.IsAchieved) this._QueueChoices.Items.Add(def, selected.Contains(def.Id));
             }
         }
 
@@ -99,13 +102,15 @@ namespace SAM.Game
             this._MinimumMinutes.Enabled = this._MaximumMinutes.Enabled = !running;
             this._AchievementsTabPage.Enabled = this._StatisticsTabPage.Enabled = !running;
             this._MainToolStrip.Enabled = !running;
-            this._StartQueue.Enabled = !running && this._QueueReady;
+            this.SetViewInput(!running && !this._ManualSaving);
+            this._StartQueue.Enabled = !this._Demo && !running && !this._ManualSaving && this._QueueReady;
             this._StopQueue.Enabled = running;
         }
 
         private void StartQueue(object sender, EventArgs e)
         {
-            if (this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
+            if (this._Demo || this._ManualSaving || this._QueueRunning || this._SavingAchievement != null || !this._QueueReady) return;
+            if (this.HasPendingChanges) { MessageBox.Show(this, "Enregistrez ou annulez les modifications manuelles avant de démarrer la file."); return; }
             if (this._MinimumMinutes.Value > this._MaximumMinutes.Value)
             {
                 MessageBox.Show(this, "Le délai minimum doit être inférieur ou égal au maximum.");
@@ -169,7 +174,17 @@ namespace SAM.Game
 
         private void OnQueueStored(API.Types.UserStatsStored result)
         {
-            if (result.GameId != (ulong)this._GameId || this._SavingAchievement == null) return;
+            if (result.GameId != (ulong)this._GameId) return;
+            if (this._ManualSaving)
+            {
+                this._ManualSaving = false;
+                this._LastStoreMessage = result.Result == 1
+                    ? $"Steam a confirmé {_ManualAchievementCount} succès et {_ManualStatCount} statistiques."
+                    : $"Steam a refusé l’enregistrement (erreur {result.Result}).";
+                this.RefreshStats();
+                return;
+            }
+            if (this._SavingAchievement == null) return;
             var saved = this._SavingAchievement;
             this._SavingAchievement = null;
             if (result.Result != 1)

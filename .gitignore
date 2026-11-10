@@ -389,3 +389,7 @@ FodyWeavers.xsd
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# Packaged distribution and UI regression screenshots
+dist/
+test-results/

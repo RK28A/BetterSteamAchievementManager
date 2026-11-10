@@ -20,9 +20,13 @@
  *    distribution.
  */
 
+// Altered source: embedded library mode and offline UI demonstration.
 using System;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Windows.Forms;
+using SAM.UI;
 
 namespace SAM.Game
 {
@@ -31,86 +35,33 @@ namespace SAM.Game
         [STAThread]
         public static void Main(string[] args)
         {
-            long appId;
-
             if (args.Length == 0)
             {
-                Process.Start("SAM.Picker.exe");
+                Process.Start(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SAM.Picker.exe"));
                 return;
             }
-
-            if (long.TryParse(args[0], out appId) == false)
+            if (!long.TryParse(args[0], out var appId) || appId <= 0 || appId > uint.MaxValue)
+            { MessageBox.Show("App ID Steam invalide."); return; }
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            bool demo = Array.IndexOf(args, "--demo") >= 0;
+            using var client = demo ? null : new API.Client();
+            if (!demo)
             {
-                MessageBox.Show(
-                    "Could not parse application ID from command line argument.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                return;
+                if (API.Steam.GetInstallPath() == Application.StartupPath)
+                { MessageBox.Show("Placez cette application hors du dossier Steam."); return; }
+                try { client.Initialize(appId); }
+                catch (Exception e) when (e is API.ClientInitializeException || e is DllNotFoundException || e is BadImageFormatException)
+                { MessageBox.Show("Impossible de se connecter à Steam. Vérifiez que Steam est ouvert et votre compte connecté.\n" + e.Message, "Connexion Steam"); return; }
             }
-
-            if (API.Steam.GetInstallPath() == Application.StartupPath)
-            {
-                MessageBox.Show(
-                    "This tool declines to being run from the Steam directory.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                return;
-            }
-
-            using (API.Client client = new())
-            {
-                try
-                {
-                    client.Initialize(appId);
-                }
-                catch (API.ClientInitializeException e)
-                {
-                    if (e.Failure == API.ClientInitializeFailure.ConnectToGlobalUser)
-                    {
-                        MessageBox.Show(
-                            "Steam is not running. Please start Steam then run this tool again.\n\n" +
-                            "If you have the game through Family Share, the game may be locked due to\n" +
-                            "the Family Share account actively playing a game.\n\n" +
-                            "(" + e.Message + ")",
-                            "Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                    }
-                    else if (string.IsNullOrEmpty(e.Message) == false)
-                    {
-                        MessageBox.Show(
-                            "Steam is not running. Please start Steam then run this tool again.\n\n" +
-                            "(" + e.Message + ")",
-                            "Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                    }
-                    else
-                    {
-                        MessageBox.Show(
-                            "Steam is not running. Please start Steam then run this tool again.",
-                            "Error",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                    }
-                    return;
-                }
-                catch (DllNotFoundException)
-                {
-                    MessageBox.Show(
-                        "You've caused an exceptional error!",
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Manager(appId, client));
-            }
+            using var manager = new Manager(appId, client, demo);
+            int hostIndex = Array.IndexOf(args, "--host");
+            int ownerIndex = Array.IndexOf(args, "--owner");
+            if (hostIndex >= 0 && ownerIndex >= 0 && hostIndex + 1 < args.Length && ownerIndex + 1 < args.Length &&
+                long.TryParse(args[hostIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long host) &&
+                int.TryParse(args[ownerIndex + 1], out int owner) && host != 0 && owner > 0)
+                WindowHost.Attach(manager, new IntPtr(host), owner);
+            Application.Run(manager);
         }
     }
 }
