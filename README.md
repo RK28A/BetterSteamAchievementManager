@@ -53,6 +53,21 @@ Le bouton **Historique** affiche les démarrages, pauses, reprises, confirmation
 
 Ouvrir une vue de jeu crée une session Steam pour son App ID, sans lancer son exécutable. Steam peut alors afficher le compte « en jeu ». Plusieurs vues peuvent rester ouvertes simultanément. **Valider des succès n’ajoute pas une durée de jeu précise** : le temps enregistré est déterminé par Steam, et son cumul pour plusieurs sessions simultanées n’est pas garanti par cette application.
 
+## GameTime Spoofer
+
+Un onglet supplémentaire permet de maintenir plusieurs sessions Steam en parallèle, avec une **durée fixe** ou une **durée aléatoire indépendante par jeu**, en minutes, heures ou jours.
+
+1. Ouvrez **GameTime Spoofer** et cochez les jeux souhaités.
+2. Choisissez la durée. Activez **Durée aléatoire pour chaque jeu** pour définir un minimum et un maximum.
+3. Cliquez sur **Démarrer la sélection**. Jusqu’à **10 sessions** peuvent fonctionner simultanément.
+4. Consultez leur état et le temps restant. Chaque session s’arrête automatiquement ; vous pouvez aussi arrêter une session ou toutes les sessions.
+
+Une session déjà active du même jeu n’est pas démarrée une seconde fois. Le compteur commence lorsque la connexion Steam réussit. Les sessions créées par GameTime se terminent si leur durée expire ou si la bibliothèque est fermée ; elles ne reprennent pas automatiquement après redémarrage.
+
+Ces sessions utilisent les App ID sans lancer les exécutables des jeux. Le minuteur ferme uniquement ses propres sessions : une vue de succès ouverte peut maintenir le jeu actif. **Le temps crédité et son cumul entre plusieurs jeux restent déterminés par Steam, sans garantie de correspondance avec la durée affichée.** La durée affichée mesure la session de l’application.
+
+En mode `--demo`, GameTime lance des sessions simulées sans connexion Steam.
+
 ## Build et Releases
 
 ```powershell

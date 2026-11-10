@@ -99,7 +99,7 @@ namespace SAM.Picker
             _FilterJunkMenuItem = Filter("Autres", false);
             _FilterDropDownButton.DropDownItems.AddRange(new ToolStripItem[] { _FilterGamesMenuItem, _FilterDemosMenuItem, _FilterModsMenuItem, _FilterJunkMenuItem });
             var about = new ToolStripMenuItem("À propos");
-            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.2\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
+            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.3\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
             _FilterDropDownButton.DropDownItems.Add(new ToolStripSeparator());
             _FilterDropDownButton.DropDownItems.Add(about);
             _PickerToolStrip.Items.AddRange(new ToolStripItem[] { _RefreshGamesButton, new ToolStripSeparator(), new ToolStripLabel("App ID"), _AddGameTextBox, _AddGameButton, new ToolStripSeparator(), _FilterDropDownButton });

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using SAM.UI;
 
@@ -99,8 +100,8 @@ namespace SAM.Picker
         {
             bool open = false;
             foreach (var session in _Sessions.Values) if (!session.Process.HasExited) open = true;
-            if (open && MessageBox.Show(this,
-                "Fermer la bibliothèque ? Achievement Order sera sauvegardé pour une reprise manuelle. Les modifications manuelles non enregistrées seront perdues.",
+            if ((open || _TimeJobs.Values.Any(j => j.Running)) && MessageBox.Show(this,
+                "Fermer la bibliothèque ? Achievement Order sera sauvegardé pour une reprise manuelle et les sessions GameTime seront arrêtées. Les modifications manuelles non enregistrées seront perdues.",
                 "Fermer BetterSteamAchievementManager", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             { e.Cancel = true; return; }
             if (_PendingCommand != null && _Runner.Running)
@@ -111,6 +112,7 @@ namespace SAM.Picker
             }
             if (_Runner.Running) { _Runner.Pause(_OrderClock.Elapsed); SaveOrderCheckpoint("Fermeture", "Commande sauvegardée pour une reprise manuelle."); }
             _ClosingLibrary = true;
+            StopAllGameTime();
             _Runner.Stop();
             ReleaseOrderLease();
             foreach (var session in _Sessions.Values)

@@ -15,7 +15,8 @@ namespace SAM.Picker
         private readonly TrackBar _Min = new SteamSlider() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
         private readonly TrackBar _Max = new SteamSlider() { TickStyle = TickStyle.None, Dock = DockStyle.Top, Height = 35 };
         private readonly Label _Label;
-        private bool _Binding;
+        private bool _Binding, _FixedDuration;
+        internal bool FixedDuration { get => _FixedDuration; set { _FixedDuration = value; Height = value ? 115 : 155; _Max.Visible = !value; UpdateLabel(); } }
         internal event EventHandler Edited;
         internal RangeEditor(string title)
         {
@@ -42,7 +43,7 @@ namespace SAM.Picker
             _Max.ValueChanged += (_, _) => { if (_Binding) return; if (_Max.Value < _Min.Value) _Min.Value = _Max.Value; Changed(); };
             Bind(new DelayRange());
         }
-        internal DelayRange Range => new() { Minimum = _Min.Value, Maximum = _Max.Value, Unit = (TimeUnit)Math.Max(0, _Unit.SelectedIndex) };
+        internal DelayRange Range => new() { Minimum = _Min.Value, Maximum = _FixedDuration ? _Min.Value : _Max.Value, Unit = (TimeUnit)Math.Max(0, _Unit.SelectedIndex) };
         internal void Bind(DelayRange value)
         {
             _Binding = true;
@@ -52,7 +53,7 @@ namespace SAM.Picker
             _Max.Value = Math.Min(_Max.Maximum, Math.Max(_Min.Value, value.Maximum));
             _Binding = false; UpdateLabel();
         }
-        private void UpdateLabel() => _Label.Text = $"De {_Min.Value} à {_Max.Value} {_Unit.Text.ToLowerInvariant()}";
+        private void UpdateLabel() => _Label.Text = _FixedDuration ? $"Durée : {_Min.Value} {_Unit.Text.ToLowerInvariant()}" : $"De {_Min.Value} à {_Max.Value} {_Unit.Text.ToLowerInvariant()}";
         private void Changed() { UpdateLabel(); Edited?.Invoke(this, EventArgs.Empty); }
     }
     internal sealed class OrderArtwork : IDisposable
