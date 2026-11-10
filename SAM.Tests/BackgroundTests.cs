@@ -29,6 +29,7 @@ internal static class BackgroundTests
             check(refused, "invalid hour duration rejected: " + value);
         }
         check(BackgroundPlanning.ActiveDelta(0.25) == 0.25 && BackgroundPlanning.ActiveDelta(3600) == 0 && BackgroundPlanning.ActiveDelta(-1) == 0, "sleep or suspended machine time is never counted as active session time");
+        check(BackgroundPlanning.DefaultWindowHours(40, 15 + 2.0 / 60) == 24.96, "default unlock window never rounds beyond the remaining hours from Steam's minute precision");
         var sequence = BackgroundPlanning.Schedule(new[] { "A", "B", "A", "C" }, 60, 600, () => 0.5);
         check(sequence.Count == 3 && sequence.Select(a => a.Id).Distinct().Count() == 3 && sequence[0].AtSeconds >= 60 && sequence.Last().AtSeconds <= 600 && sequence.Zip(sequence.Skip(1), (a,b) => b.AtSeconds > a.AtSeconds).All(x => x), "random schedule de-duplicates and spreads achievements inside the chosen period");
         string folder = Path.Combine(Path.GetTempPath(), "BSAM-Background-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);

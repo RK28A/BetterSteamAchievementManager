@@ -68,6 +68,8 @@ namespace SAM.API.Orders
             var values = ids.Distinct().Select(id => new { Id = id, Key = random() }).OrderBy(x => x.Key).ToArray();
             return values.Select((x, i) => new PlannedAchievement { Id = x.Id, AtSeconds = from + (i + Math.Max(0, Math.Min(1, random()))) / values.Length * (to - from) }).ToList();
         }
+        public static double DefaultWindowHours(double targetHours, double? steamHours) =>
+            Math.Floor(Math.Max(0, Math.Round(targetHours, 2) - (steamHours ?? 0)) * 100 + 0.0000001) / 100;
         public static double ActiveDelta(double seconds) => seconds >= 0 && seconds <= 2 ? seconds : 0;
         public static void Validate(BackgroundState state)
         {

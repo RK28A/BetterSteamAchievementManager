@@ -88,7 +88,7 @@ namespace SAM.Picker
                 if (!_Background.Games.Any(g => g.GameId == group.GameId))
                 {
                     double? hours = _Demo ? null : CompletionSource.SteamHours(API.Steam.GetInstallPath(), _SteamClient.SteamUser.GetSteamId(), group.GameId);
-                    _Background.Games.Add(new GamePlan { GameId = group.GameId, Name = group.Name, SteamHours = hours, TargetHours = Math.Max(10, (hours ?? 0) + 1), WindowEndHours = 0 });
+                    _Background.Games.Add(new GamePlan { GameId = group.GameId, Name = group.Name, SteamHours = hours, TargetHours = Math.Round(Math.Max(10, (hours ?? 0) + 1), 2), WindowEndHours = 0 });
                 }
             uint selected = SelectedPlan?.GameId ?? 0;
             _ParallelGames.BeginUpdate(); _ParallelGames.Items.Clear();
@@ -104,7 +104,7 @@ namespace SAM.Picker
             _SteamHoursLabel.Text = plan.SteamHours.HasValue ? $"Temps Steam en cache : {plan.SteamHours:0.##} h" : "Temps Steam indisponible · objectif = heures à effectuer";
             _CompletionLabel.Text = plan.CompletionHours.HasValue ? $"HowLongToBeat · 100 % : {plan.CompletionHours:0.##} h\nMoyenne communautaire, pas une durée garantie." : "HowLongToBeat · moyenne indisponible\nVous pouvez saisir votre propre objectif.";
             _TargetHours.Text = plan.TargetHours.ToString("0.##"); _WindowFrom.Text = plan.WindowStartHours.ToString("0.##");
-            _WindowTo.Text = (plan.WindowEndHours > 0 ? plan.WindowEndHours : Math.Max(0, plan.TargetHours - (plan.SteamHours ?? 0))).ToString("0.##");
+            _WindowTo.Text = (plan.WindowEndHours > 0 ? plan.WindowEndHours : BackgroundPlanning.DefaultWindowHours(plan.TargetHours, plan.SteamHours)).ToString("0.##");
             _SourceUrl.Text = plan.SourceUrl ?? "";
             if (!_Demo && !_Background.ParallelEnabled && !plan.Ready && !plan.CompletionHours.HasValue && _CompletionAttempted.Add(plan.GameId)) _ = LoadCompletion(plan);
         }
@@ -116,7 +116,7 @@ namespace SAM.Picker
             {
                 var result = await CompletionSource.Lookup(plan.GameId, plan.Name, url);
                 if (IsDisposed || _ClosingLibrary || _Background.ParallelEnabled || plan.Ready) return;
-                plan.CompletionHours = result.Hours; plan.SourceUrl = result.Url; plan.TargetHours = result.Hours; plan.WindowEndHours = Math.Max(0, plan.TargetHours - (plan.SteamHours ?? 0));
+                plan.CompletionHours = result.Hours; plan.SourceUrl = result.Url; plan.TargetHours = Math.Round(result.Hours, 2); plan.WindowEndHours = BackgroundPlanning.DefaultWindowHours(plan.TargetHours, plan.SteamHours);
                 SaveBackground(); if (SelectedPlan == plan) BindParallelGame();
             }
             catch (Exception e) when (e is System.Net.Http.HttpRequestException || e is System.Threading.Tasks.TaskCanceledException || e is InvalidOperationException || e is ArgumentException || e is IOException)
