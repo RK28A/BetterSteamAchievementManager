@@ -83,7 +83,7 @@ namespace SAM.Picker
             var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, WrapContents = true };
             var start = new Button { Text = "Démarrer la sélection", AutoSize = true, Tag = "primary" }; start.Click += (_, _) => StartGameTime();
             var stop = new Button { Text = "Arrêter la session", AutoSize = true }; stop.Click += (_, _) => ParallelAction(() => { if (_TimeRuns.SelectedItem is TimeJob job) StopGameTime(job); });
-            var resume = new Button { Text = "Reprendre", AutoSize = true }; resume.Click += (_, _) => ParallelAction(() => { if (_TimeRuns.SelectedItem is TimeJob job && !job.Plan.Order && job.Plan.ElapsedSeconds < job.Plan.GoalSeconds) { if (_TimeJobs.Values.Count(j => j.Plan.Resume || j.Running) >= 20) throw new InvalidOperationException("20 sessions maximum."); job.Plan.Resume = true; job.RetryUtc = DateTime.MinValue; SaveBackground(); } });
+            var resume = new Button { Text = "Reprendre", AutoSize = true }; resume.Click += (_, _) => ParallelAction(() => { if (_TimeRuns.SelectedItem is TimeJob job && !job.Plan.Order && job.Plan.ElapsedSeconds < job.Plan.GoalSeconds) { if (_TimeJobs.Values.Count(j => !j.Plan.Order && (j.Plan.Resume || j.Running)) >= 20) throw new InvalidOperationException("20 sessions maximum."); job.Plan.Resume = true; job.RetryUtc = DateTime.MinValue; SaveBackground(); } });
             var stopAll = new Button { Text = "Tout arrêter", AutoSize = true }; stopAll.Click += (_, _) => ParallelAction(StopAllGameTime);
             actions.Controls.Add(start); actions.Controls.Add(stop); actions.Controls.Add(stopAll); actions.Controls.Add(resume);
             split.Panel2.Controls.Add(_TimeRuns); split.Panel2.Controls.Add(actions); split.Panel2.Controls.Add(options);
@@ -127,15 +127,15 @@ namespace SAM.Picker
         private void RebuildTimeRows()
         {
             _TimeRuns.BeginUpdate(); _TimeRuns.Items.Clear();
-            foreach (var job in _TimeJobs.Values) _TimeRuns.Items.Add(job);
+            foreach (var job in _TimeJobs.Values.Where(j => !j.Plan.Order)) _TimeRuns.Items.Add(job);
             _TimeRuns.EndUpdate();
         }
         private TimeJob AddTimeJob(GameInfo game, double seconds, bool order)
         {
             if (_TimeJobs.TryGetValue(game.Id, out var old) && (old.Running || old.Plan.Resume))
                 throw new InvalidOperationException("Une session existe déjà pour " + game.Name + ". Arrêtez-la avant de changer de mode.");
-            if (_TimeJobs.Values.Count(j => j.Running || j.Plan.Resume) >= BackgroundPlanning.SessionLimit)
-                throw new InvalidOperationException("20 sessions maximum, y compris les jeux d’Achievement Order.");
+            if (_TimeJobs.Values.Count(j => j.Plan.Order == order && (j.Running || j.Plan.Resume)) >= (order ? BackgroundPlanning.OrderLimit : BackgroundPlanning.SessionLimit))
+                throw new InvalidOperationException(order ? "10 jeux simultanés maximum dans Order." : "20 sessions GameTime maximum.");
             var plan = new TimePlan { GameId = game.Id, Name = game.Name, GoalSeconds = seconds, Resume = true, Order = order };
             var job = MakeTimeJob(game, plan);
             _Background.Sessions.RemoveAll(s => s.GameId == game.Id); _Background.Sessions.Add(plan);
@@ -162,7 +162,7 @@ namespace SAM.Picker
                 double min = BackgroundPlanning.Hours(_TimeHours.Text), max = _TimeRandom.Checked ? BackgroundPlanning.Hours(_TimeMaxHours.Text) : min;
                 if (max < min) throw new InvalidOperationException("Le maximum doit dépasser le minimum.");
                 var requested = _TimeSelection.Where(id => _Games.ContainsKey(id) && (!_TimeJobs.TryGetValue(id, out var job) || (!job.Running && !job.Plan.Resume))).ToArray();
-                if (requested.Length + _TimeJobs.Values.Count(j => j.Running || j.Plan.Resume) > BackgroundPlanning.SessionLimit) throw new InvalidOperationException("20 sessions maximum, y compris Achievement Order.");
+                if (requested.Length + _TimeJobs.Values.Count(j => !j.Plan.Order && (j.Running || j.Plan.Resume)) > BackgroundPlanning.SessionLimit) throw new InvalidOperationException("20 sessions GameTime maximum.");
                 if (requested.Length == 0) return;
                 foreach (uint id in requested) AddTimeJob(_Games[id], (min + (max - min) * _TimeRandomSource.NextDouble()) * 3600, false);
                 EnableBackgroundRecovery(); TickGameTime();
@@ -204,7 +204,7 @@ namespace SAM.Picker
                 SaveBackground();
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException) { _TimeSummary.Text = "Sauvegarde interrompue : " + e.Message; return; }
-            int active = _TimeJobs.Values.Count(j => j.Running);
+            int active = _TimeJobs.Values.Count(j => !j.Plan.Order && j.Running);
             _TimeSummary.Text = (_Demo ? "SIMULATION · " : "") + active + "/20 sessions · progression sauvegardée · arrêt à l’objectif";
             _TimeButton.Text = "GameTime" + (active > 0 ? " · " + active : " Spoofer"); _TimeRuns.Invalidate();
         }
@@ -223,8 +223,7 @@ namespace SAM.Picker
         }
         private void StopAllGameTime()
         {
-            if (_Background.ParallelEnabled) PauseParallel();
-            foreach (var job in _TimeJobs.Values) StopGameTime(job);
+            foreach (var job in _TimeJobs.Values.Where(j => !j.Plan.Order)) StopGameTime(job);
         }
         private void SuspendTimeWorkers()
         {

@@ -42,6 +42,13 @@ internal static class BackgroundTests
             twenty.Sessions.Add(new TimePlan { GameId = 21, GoalSeconds = 1, Resume = true });
             bool limit = false; try { BackgroundPlanning.Validate(twenty); } catch (InvalidDataException) { limit = true; }
             check(limit, "session limit accepts 20 and rejects a 21st active plan");
+            twenty.Sessions.RemoveAt(20);
+            twenty.Sessions.AddRange(Enumerable.Range(101, 10).Select(i => new TimePlan { GameId = (uint)i, GoalSeconds = 1, Resume = true, Order = true }));
+            BackgroundPlanning.Validate(twenty);
+            check(twenty.Sessions.Count == 30, "20 standalone sessions and 10 Order games have independent capacities");
+            twenty.Sessions.Add(new TimePlan { GameId = 111, GoalSeconds = 1, Resume = true, Order = true });
+            bool orderLimit = false; try { BackgroundPlanning.Validate(twenty); } catch (InvalidDataException) { orderLimit = true; }
+            check(orderLimit, "parallel Order refuses an eleventh simultaneous game");
             var cart = new JsonStore<OrderCart>(Path.Combine(folder, "cart.json"));
             cart.Update(c => { c.ActiveRun = "parallel"; c.LeaseUntilUtc = DateTime.UtcNow.AddMinutes(1); foreach (uint id in new uint[] { 620, 400 }) c.Games.Add(new OrderGroup { GameId = id, Achievements = new List<OrderAchievement> { new() { Id = "DEMO_2" } } }); });
             var one = new JsonStore<OrderCommand>(Path.Combine(folder, "620.json")); var two = new JsonStore<OrderCommand>(Path.Combine(folder, "400.json"));

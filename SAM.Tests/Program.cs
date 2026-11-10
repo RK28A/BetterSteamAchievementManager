@@ -105,6 +105,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--exit-helper" && int.TryParse(args[1], out int helperCode)) { System.Threading.Thread.Sleep(1500); return helperCode; }
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

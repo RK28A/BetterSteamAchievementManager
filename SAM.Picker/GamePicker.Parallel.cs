@@ -34,7 +34,7 @@ namespace SAM.Picker
         {
             var mode = new Button { Text = "Mode simultané →", Dock = DockStyle.Right, Width = 185 };
             header.Controls.Add(mode); mode.BringToFront(); SteamTheme.Apply(mode);
-            mode.Click += (_, _) => { RefreshParallelGames(); _ParallelPanel.BringToFront(); };
+            mode.Click += (_, _) => ParallelAction(() => { RefreshParallelGames(); _ParallelPanel.BringToFront(); });
             _ParallelPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
             var heading = SteamTheme.Label("Achievement Order / Simultané", 21); heading.Dock = DockStyle.Top;
             var navigation = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 46 };
@@ -186,7 +186,7 @@ namespace SAM.Picker
                     if (_ParallelLanes.ContainsKey(plan.GameId)) continue;
                     if (!_TimeJobs.TryGetValue(plan.GameId, out var job) || !job.Plan.Order)
                     {
-                        if (_TimeJobs.Values.Count(j => j.Plan.Resume || j.Running) >= 20) continue;
+                        if (_TimeJobs.Values.Count(j => j.Plan.Order && (j.Plan.Resume || j.Running)) >= 10) continue;
                         job = AddTimeJob(new GameInfo(plan.GameId, "normal") { Name = plan.Name }, (plan.TargetHours - (plan.SteamHours ?? 0)) * 3600, true);
                     }
                     job.Plan.Resume = job.Plan.ElapsedSeconds < job.Plan.GoalSeconds;

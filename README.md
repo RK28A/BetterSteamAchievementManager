@@ -67,7 +67,7 @@ Une session continue jusqu’à son objectif, même si ses succès sont déjà t
 
 ## GameTime Spoofer
 
-Sélectionnez vos jeux et saisissez une **durée en heures dans une zone de texte**, avec décimales (ex. `1,5`). L’option aléatoire utilise deux valeurs : minimum et maximum. Chaque jeu reçoit sa propre durée. Jusqu’à **20 sessions au total**, y compris les sessions d’Order, peuvent fonctionner en parallèle. Un même jeu ne peut pas être lancé à la fois dans les deux modes.
+Sélectionnez vos jeux et saisissez une **durée en heures dans une zone de texte**, avec décimales (ex. `1,5`). L’option aléatoire utilise deux valeurs : minimum et maximum. Chaque jeu reçoit sa propre durée. Jusqu’à **20 sessions GameTime** peuvent fonctionner en parallèle, en plus des **10 jeux maximum dans Order**. Un même jeu ne peut pas être lancé à la fois dans les deux modes.
 
 Chaque session s’arrête à son objectif. **Arrêter**, **Tout arrêter** et **Reprendre** permettent de gérer les sessions conservées. Le compteur démarre après la connexion à Steam ; il mesure le temps actif du processus, sans compter les arrêts ni les longues suspensions. Le temps est enregistré chaque seconde, avec une perte possible d’environ une seconde lors d’un arrêt brutal.
 

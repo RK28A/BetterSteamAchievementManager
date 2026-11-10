@@ -28,6 +28,17 @@ namespace SAM.Picker
             using var signal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\BSAM-Show" + (demo ? "-Demo" : ""));
             try
             {
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
+                AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                {
+                    try
+                    {
+                        string folder = Path.GetDirectoryName(OrderPaths.Cart); Directory.CreateDirectory(folder);
+                        File.WriteAllText(Path.Combine(folder, "last-crash.log"), DateTime.UtcNow.ToString("O") + Environment.NewLine + e.ExceptionObject);
+                    }
+                    catch (Exception) { }
+                    Environment.Exit(1); // Let the supervisor recover; avoid a blocking WinForms error dialog.
+                };
                 Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
                 if (API.Steam.GetInstallPath() == Application.StartupPath && !demo) { MessageBox.Show("Déplacez l’application hors du dossier Steam."); return; }
                 if (!demo)
@@ -45,10 +56,7 @@ namespace SAM.Picker
             if (args.Length != 3 || !int.TryParse(args[1], out int id) || !long.TryParse(args[2], out long start)) return;
             try
             {
-                using var owner = Process.GetProcessById(id);
-                if (owner.StartTime.ToUniversalTime().Ticks != start) return;
-                owner.WaitForExit();
-                if (owner.ExitCode == 0) return; // Explicit Quit must never be undone by recovery.
+                if (!RecoverySupervisor.WaitForCrash(id, start)) return; // Explicit Quit must never be undone by recovery.
                 var state = new JsonStore<BackgroundState>(Path.Combine(Path.GetDirectoryName(OrderPaths.Cart), "background-sessions.json")).Read();
                 if (!state.Startup) return;
                 Thread.Sleep(5000);
