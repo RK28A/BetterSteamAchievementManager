@@ -118,11 +118,16 @@ namespace SAM.Picker
                     job.Process = Process.Start(start); job.Running = true;
                     existing?.Process?.Dispose(); _TimeJobs[id] = job;
                 }
-                _TimeRuns.Items.Clear(); foreach (var job in _TimeJobs.Values) _TimeRuns.Items.Add(job);
                 TickGameTime();
             }
             catch (Exception e) when (e is InvalidOperationException || e is System.ComponentModel.Win32Exception || e is IOException)
             { MessageBox.Show(this, e.Message, "GameTime Spoofer"); }
+            finally
+            {
+                _TimeRuns.BeginUpdate(); _TimeRuns.Items.Clear();
+                foreach (var job in _TimeJobs.Values) _TimeRuns.Items.Add(job);
+                _TimeRuns.EndUpdate();
+            }
         }
         private void TickGameTime()
         {
