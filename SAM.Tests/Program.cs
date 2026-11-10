@@ -113,6 +113,7 @@ internal static class Program
         {
             OrderTests.Run(Check);
             UpgradeTests.Run(Check);
+            PlaytimeTests.Run(Check);
             Console.WriteLine("START achievement view construction");
             using (var manager = new Manager(620, null, true))
             {
@@ -323,6 +324,20 @@ internal static class Program
                     Check(Field<ListView>(library, "_GameListView").VirtualListSize == Field<System.Collections.Generic.List<SAM.Picker.GameInfo>>(library, "_FilteredGames").Count, "repeated library filter changes keep native indices synchronized");
                     Invoke(library, "OpenGame", 0); Pump(200);
                     CaptureScreen(library, "test-results/library-favorites.png");
+                    Field<Button>(library, "_TimeButton").PerformClick(); Pump(150);
+                    Check(Field<CheckedListBox>(library, "_TimeGames").Items.Count == 3, "GameTime lists games independently of library filters");
+                    Field<CheckBox>(library, "_TimeRandom").Checked = true;
+                    Field<CheckedListBox>(library, "_TimeGames").SetItemChecked(0, true);
+                    Field<CheckedListBox>(library, "_TimeGames").SetItemChecked(1, true);
+                    Invoke(library, "StartGameTime"); Pump(1600);
+                    var timeJobs = Field<System.Collections.IDictionary>(library, "_TimeJobs");
+                    Check(timeJobs.Count == 2, "GameTime starts both selected game sessions");
+                    Invoke(library, "StartGameTime");
+                    Check(timeJobs.Count == 2, "GameTime does not duplicate active game sessions");
+                    CaptureScreen(library, "test-results/gametime.png");
+                    Invoke(library, "StopAllGameTime");
+                    foreach (var job in timeJobs.Values)
+                        Check(Field<Process>(job, "Process").WaitForExit(5000), "GameTime stop-all terminates its owned worker");
                 }
                 finally
                 {

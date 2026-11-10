@@ -45,6 +45,7 @@ namespace SAM.Game
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             bool demo = Array.IndexOf(args, "--demo") >= 0;
+            if (Array.IndexOf(args, "--playtime") >= 0) { PlaytimeWorker.Run(appId, args, demo); return; }
             using var client = demo ? null : new API.Client();
             if (!demo)
             {

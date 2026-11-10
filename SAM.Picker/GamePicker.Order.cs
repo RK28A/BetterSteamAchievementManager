@@ -109,6 +109,7 @@ namespace SAM.Picker
             timer.Tick += (_, _) => TickOrder();
             FormClosed += (_, _) => { _Runner.Stop(); ReleaseOrderLease(); };
             InitializeHistory(bar);
+            InitializeGameTime(bar);
             RefreshOrderCart();
         }
 
