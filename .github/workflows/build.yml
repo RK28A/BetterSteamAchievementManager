@@ -38,7 +38,7 @@ jobs:
           $app = Start-Process $singleExe -ArgumentList '--extract-only' -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "Single EXE extraction failed" }
           $cache = Get-ChildItem "$env:LOCALAPPDATA/BetterSteamAchievementManager" -Directory -Filter 'app-*' | Select-Object -First 1
-          foreach ($name in @('SAM.Picker.exe', 'SAM.Game.exe', 'SAM.API.dll', 'System.Resources.Extensions.dll', 'LICENSE.txt')) {
+          foreach ($name in @('SAM.Picker.exe', 'SAM.Game.exe', 'SAM.API.dll', 'System.Resources.Extensions.dll', 'LICENSE.txt', 'THIRD_PARTY_NOTICES.txt')) {
             if (-not (Test-Path (Join-Path $cache.FullName $name))) { throw "Missing payload file: $name" }
           }
           'corrupted' | Set-Content (Join-Path $cache.FullName 'SAM.Picker.exe')

@@ -66,7 +66,7 @@ namespace SAM.Picker
                 if (_Disposed) return;
                 if (e.Error == null && !e.Cancelled)
                     try { using var input = new MemoryStream(e.Result); using var source = new Bitmap(input); _Images[(string)e.UserState] = new Bitmap(source); }
-                    catch (ArgumentException) { }
+                    catch (Exception error) when (error is ArgumentException || error is OutOfMemoryException) { }
                 Loaded?.Invoke(this, EventArgs.Empty); Next();
             };
         }

@@ -70,6 +70,7 @@ namespace SAM.Picker
             _GameListView.DrawSubItem += (_, e) => { };
             _GameListView.ItemSelectionChanged += (_, e) => { if (e.IsSelected) OpenGame(e.ItemIndex); };
             _GameListView.ItemActivate += OnActivateGame;
+            _GameListView.MouseClick += (_, e) => { var item = _GameListView.HitTest(e.Location).Item; if (item != null) OpenGame(item.Index); };
             _GameListView.SizeChanged += (_, _) => _GameListView.Columns[0].Width = Math.Max(100, _GameListView.ClientSize.Width - 2);
             split.Panel1.Controls.Add(_GameListView);
             split.Panel1.Controls.Add(libraryTop);
