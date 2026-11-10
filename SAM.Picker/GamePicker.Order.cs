@@ -284,7 +284,12 @@ namespace SAM.Picker
                         else if (_CommandClock.Elapsed > TimeSpan.FromSeconds(120))
                         { _Runner.Fail(); _OrderMessage = "Le jeu ne répond pas. Aucun autre succès ne sera envoyé. Vérifiez sa vue avant de réessayer."; SaveOrderCheckpoint("Erreur", _OrderMessage); _PendingCommand = null; }
                     }
+                    var previousPhase = _Runner.Phase;
                     var step = _Runner.Tick(_OrderClock.Elapsed);
+                    // Persist the newly sampled delay at the game boundary immediately.
+                    // A restart here must not sample a different multi-day wait.
+                    if (previousPhase == OrderPhase.GameDelay && _Runner.Phase == OrderPhase.AchievementDelay)
+                        SaveOrderCheckpoint();
                     if (step != null)
                     {
                         EnsureSession(new GameInfo(step.GameId, "normal") { Name = step.GameName }, false);
