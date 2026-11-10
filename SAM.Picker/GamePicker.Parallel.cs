@@ -27,14 +27,15 @@ namespace SAM.Picker
         private TextBox _ParallelCount, _TargetHours, _WindowFrom, _WindowTo, _SourceUrl;
         private FlowLayoutPanel _ParallelSettings;
         private Label _ParallelStatus, _CompletionLabel, _SteamHoursLabel;
-        private Button _ParallelStart, _LookupCompletion;
+        private Button _ParallelStart, _LookupCompletion, _ParallelModeButton;
         private GamePlan SelectedPlan => _ParallelGames.SelectedItem as GamePlan;
         private string GameCommandPath(uint id) => Path.Combine(Path.GetDirectoryName(_CommandPath), "command-" + id + ".json");
-        private void InitializeParallelOrder(Panel header)
+        private void InitializeParallelOrder(TableLayoutPanel header)
         {
-            var mode = new Button { Text = "Mode simultané →", Dock = DockStyle.Right, Width = 185 };
-            header.Controls.Add(mode); mode.BringToFront(); SteamTheme.Apply(mode);
-            mode.Click += (_, _) => ParallelAction(() => { RefreshParallelGames(); _ParallelPanel.BringToFront(); });
+            _ParallelModeButton = new Button { Text = "Mode simultané →", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                MinimumSize = new Size(185, 40), Margin = new Padding(0, 8, 0, 0), AccessibleName = "Ouvrir le mode simultané" };
+            header.Controls.Add(_ParallelModeButton, 0, 2); SteamTheme.Apply(_ParallelModeButton);
+            _ParallelModeButton.Click += (_, _) => ParallelAction(() => { RefreshParallelGames(); _ParallelPanel.BringToFront(); });
             _ParallelPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
             var heading = SteamTheme.Label("Achievement Order / Simultané", 21); heading.Dock = DockStyle.Top;
             var navigation = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 46 };

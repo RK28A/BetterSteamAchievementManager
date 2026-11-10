@@ -338,8 +338,25 @@ internal static class Program
                     Invoke(library, "StartGameTime");
                     Check(timeJobs.Count == 2, "GameTime does not duplicate active game sessions");
                     CaptureScreen(library, "test-results/gametime.png");
-                    Invoke(library, "RefreshParallelGames");
-                    Field<Panel>(library, "_ParallelPanel").BringToFront(); Pump(100);
+                    Field<Button>(library, "_OrderButton").PerformClick(); Pump(100);
+                    var modeButton = Field<Button>(library, "_ParallelModeButton");
+                    var originalSize = library.Size;
+                    foreach (var size in new[] { originalSize, library.MinimumSize })
+                    {
+                        library.Size = size; Pump(150);
+                        var screenButton = modeButton.RectangleToScreen(modeButton.ClientRectangle);
+                        bool unclipped = modeButton.Visible && modeButton.Height >= modeButton.GetPreferredSize(Size.Empty).Height;
+                        for (Control ancestor = modeButton.Parent; ancestor != null; ancestor = ancestor.Parent)
+                            unclipped &= ancestor.RectangleToScreen(ancestor.ClientRectangle).Contains(screenButton);
+                        Check(unclipped, "parallel mode button stays fully visible at " + size);
+                        Check(ChildWindowFromPointEx(modeButton.Parent.Handle, new Point(modeButton.Left + modeButton.Width / 2, modeButton.Top + modeButton.Height / 2), 1) == modeButton.Handle,
+                            "parallel mode button is not covered by another control at " + size);
+                    }
+                    CaptureScreen(library, "test-results/order-mode-button-compact.png");
+                    library.Size = originalSize; Pump(100);
+                    modeButton.PerformClick(); Pump(100);
+                    var parallelPanel = Field<Panel>(library, "_ParallelPanel");
+                    Check(ChildWindowFromPointEx(hostPanel.Handle, new Point(20, 20), 1) == parallelPanel.Handle, "visible mode button opens the parallel Order view");
                     Check(Field<ListBox>(library, "_ParallelGames").Items.Count == 2, "parallel Order displays games rather than individual achievements");
                     Field<TextBox>(library, "_TargetHours").Text = "20";
                     Field<TextBox>(library, "_WindowFrom").Text = "1";
