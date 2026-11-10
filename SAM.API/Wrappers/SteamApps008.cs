@@ -39,6 +39,12 @@ namespace SAM.API.Wrappers
         }
         #endregion
 
+        // Altered source: library installed-games filter.
+        public bool IsAppInstalled(uint gameId)
+        {
+            return this.Call<bool, NativeIsSubscribedApp>(this.Functions.IsAppInstalled, this.ObjectAddress, gameId);
+        }
+
         #region GetCurrentGameLanguage
         [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate IntPtr NativeGetCurrentGameLanguage(IntPtr self);

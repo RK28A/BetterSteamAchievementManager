@@ -50,16 +50,18 @@ namespace SAM.Picker
             split.SplitterDistance = 292;
             split.Panel1MinSize = 245;
             split.Panel2MinSize = 680;
-            var libraryTop = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(16, 10, 12, 8) };
+            var libraryTop = new Panel { Dock = DockStyle.Top, Height = 135, Padding = new Padding(16, 10, 12, 8) };
             _LibraryCount = SteamTheme.Label("VOTRE BIBLIOTHÈQUE", 10, SteamTheme.Muted);
             _LibraryCount.Dock = DockStyle.Top;
             var search = new ToolStrip { Dock = DockStyle.Bottom, AutoSize = false, Height = 40 };
             _SearchGameTextBox = new ToolStripTextBox { AutoSize = false, Width = 230, ToolTipText = "Rechercher dans la bibliothèque", AccessibleName = "Rechercher un jeu" };
             _SearchGameTextBox.TextChanged += OnFilterUpdate;
             search.Items.Add(_SearchGameTextBox);
+            _LibraryFilters = new ToolStrip { Dock = DockStyle.Bottom, Height = 34 };
+            libraryTop.Controls.Add(_LibraryFilters);
             libraryTop.Controls.Add(search);
             libraryTop.Controls.Add(_LibraryCount);
-            _LogoImageList = new ImageList(components) { ImageSize = new Size(40, 32), ColorDepth = ColorDepth.Depth32Bit };
+            _LogoImageList = new ImageList(components) { ImageSize = new Size(40, 48), ColorDepth = ColorDepth.Depth32Bit };
             _GameListView = new MyListView { Dock = DockStyle.Fill, View = View.Details, HeaderStyle = ColumnHeaderStyle.None,
                 BorderStyle = BorderStyle.None, FullRowSelect = true, MultiSelect = false, HideSelection = false,
                 VirtualMode = true, OwnerDraw = true, SmallImageList = _LogoImageList, AccessibleName = "Bibliothèque de jeux" };
@@ -101,7 +103,7 @@ namespace SAM.Picker
             _FilterJunkMenuItem = Filter("Autres", false);
             _FilterDropDownButton.DropDownItems.AddRange(new ToolStripItem[] { _FilterGamesMenuItem, _FilterDemosMenuItem, _FilterModsMenuItem, _FilterJunkMenuItem });
             var about = new ToolStripMenuItem("À propos");
-            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.1\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
+            about.Click += (_, _) => MessageBox.Show(this, "BetterSteamAchievementManager\nInterface bibliothèque · Version 8.2\n\nBasé sur Steam Achievement Manager de gibbed.\nLicence zlib et attributions dans la distribution.", "À propos");
             _FilterDropDownButton.DropDownItems.Add(new ToolStripSeparator());
             _FilterDropDownButton.DropDownItems.Add(about);
             _PickerToolStrip.Items.AddRange(new ToolStripItem[] { _RefreshGamesButton, new ToolStripSeparator(), new ToolStripLabel("App ID"), _AddGameTextBox, _AddGameButton, new ToolStripSeparator(), _FilterDropDownButton });

@@ -9,7 +9,7 @@ namespace SAM.Game
 {
     internal partial class Manager
     {
-        private readonly CheckedListBox _QueueChoices = new() { Dock = DockStyle.Fill, CheckOnClick = true };
+        private readonly CheckedListBox _QueueChoices = new SAM.UI.SteamCheckedListBox() { Dock = DockStyle.Fill, CheckOnClick = true };
         private readonly NumericUpDown _MinimumMinutes = new() { Minimum = 1, Maximum = 1440, Value = 3, Width = 70 };
         private readonly NumericUpDown _MaximumMinutes = new() { Minimum = 1, Maximum = 1440, Value = 10, Width = 70 };
         private readonly Button _StartQueue = new() { Text = "Démarrer", AutoSize = true };

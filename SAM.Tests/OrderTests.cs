@@ -11,7 +11,8 @@ internal static class OrderTests
     private sealed class Fake : IStatsGateway
     {
         internal int Sets, Stores;
-        public bool ReadAchievement(string id, out bool achieved) { achieved = false; return true; }
+        internal bool Achieved;
+        public bool ReadAchievement(string id, out bool achieved) { achieved = Achieved; return true; }
         public bool SetAchievement(string id, bool achieved) { Sets++; return true; }
         public bool Store() { Stores++; return true; }
     }
@@ -90,6 +91,11 @@ internal static class OrderTests
                 manager._Cards.SelectVisible("locked"); manager.StageSelected(true);
                 Invoke(manager, "PollOrderCommand");
                 check(commands.Read().State == "failed" && fake.Sets == 1, "cart worker refuses to commit unrelated manual changes");
+                foreach (var achievement in manager._Cards.VisibleAchievements) achievement.Item.Checked = achievement.IsAchieved;
+                fake.Achieved = true;
+                commands.Update(command => { command.Id = "already-earned"; command.AchievementId = "DEMO_3"; command.State = "requested"; });
+                Invoke(manager, "PollOrderCommand");
+                check(commands.Read().State == "done" && fake.Sets == 1 && fake.Stores == 1, "resumed worker skips achievements already earned without sending another write");
                 check(manager.FormBorderStyle == System.Windows.Forms.FormBorderStyle.None, "standalone game view uses custom dark window chrome");
             }
             string corrupted = "{this is not valid json";

@@ -21,7 +21,8 @@ namespace SAM.Picker
         private RangeEditor _SuccessRange, _GameRange;
         private CheckBox _BetweenGames;
         private Label _OrderStatus, _OrderCount, _OrderGameName;
-        private Button _OrderButton, _RunOrder, _StopOrder;
+        private Button _OrderButton, _RunOrder, _StopOrder, _PauseOrder;
+        private Label _OrderEstimate;
         private FlowLayoutPanel _OrderActions;
         private bool _BindingOrder;
         private string _RowSignature = "", _RunId, _PendingCommand;
@@ -57,10 +58,11 @@ namespace SAM.Picker
             var body = new SplitContainer { Dock = DockStyle.Fill, Size = new Size(840, 450), FixedPanel = FixedPanel.Panel2, SplitterWidth = 2, BackColor = SteamTheme.Background };
             body.SplitterDistance = 560; body.Panel1MinSize = 260; body.Panel2MinSize = 250;
             _OrderRows = new OrderRows(); body.Panel1.Controls.Add(_OrderRows);
+            _OrderRows.MoveRequested += (source, target, after) => EditOrder(() => _OrderStore.Update(cart => OrderPlanning.Move(cart, source.Game.GameId, source.Achievement?.Id, target.Game.GameId, target.Achievement?.Id, after)));
             var settings = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
             _OrderGameName = SteamTheme.Label("Sélectionnez un jeu du panier", 11, SteamTheme.Accent); _OrderGameName.Dock = DockStyle.Top; _OrderGameName.MaximumSize = new Size(250, 60);
             _SuccessRange = new RangeEditor("Entre les succès");
-            _BetweenGames = new CheckBox { Text = "Pause entre les jeux", Dock = DockStyle.Top, Height = 36, ForeColor = SteamTheme.Text };
+            _BetweenGames = new SAM.UI.SteamCheckBox { Text = "Pause entre les jeux", Dock = DockStyle.Top, Height = 36, ForeColor = SteamTheme.Text };
             _GameRange = new RangeEditor("Entre les jeux");
             var hint = SteamTheme.Label("Chaque jeu conserve ses délais.\nLa pause entre jeux s’ajoute au délai\ndu prochain succès.\n\nUn envoi à la fois, avec\nconfirmation de Steam.", 9, SteamTheme.Muted); hint.Dock = DockStyle.Top;
             _OrderGameName.AutoSize = false; _OrderGameName.Height = 44;
@@ -89,9 +91,13 @@ namespace SAM.Picker
             _StopOrder = new Button { Text = "Arrêter", AutoSize = true, Enabled = false, Margin = new Padding(3) };
             _StopOrder.Click += (_, _) => StopOrder();
             var run = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(10, 4, 10, 4) };
-            run.Controls.Add(_RunOrder); run.Controls.Add(_StopOrder);
+            _PauseOrder = new Button { Text = "Pause", AutoSize = true, Enabled = false, Margin = new Padding(3) };
+            _PauseOrder.Click += (_, _) => PauseOrder();
+            run.Controls.Add(_RunOrder); run.Controls.Add(_PauseOrder); run.Controls.Add(_StopOrder);
+            _OrderEstimate = SteamTheme.Label("", 9, SteamTheme.Muted);
+            _OrderEstimate.Dock = DockStyle.Bottom; _OrderEstimate.AutoSize = false; _OrderEstimate.Height = 64; _OrderEstimate.Padding = new Padding(12, 4, 12, 4);
             _OrderStatus = SteamTheme.Label(_OrderMessage, 10, SteamTheme.Accent); _OrderStatus.Dock = DockStyle.Bottom; _OrderStatus.MaximumSize = new Size(1100, 0); _OrderStatus.Padding = new Padding(12, 8, 12, 8);
-            _OrderPanel.Controls.Add(body); _OrderPanel.Controls.Add(_OrderActions); _OrderPanel.Controls.Add(run); _OrderPanel.Controls.Add(_OrderStatus); _OrderPanel.Controls.Add(header);
+            _OrderPanel.Controls.Add(body); _OrderPanel.Controls.Add(_OrderActions); _OrderPanel.Controls.Add(run); _OrderPanel.Controls.Add(_OrderEstimate); _OrderPanel.Controls.Add(_OrderStatus); _OrderPanel.Controls.Add(header);
             _GameHost.Controls.Add(_OrderPanel); _OrderPanel.SendToBack();
             SteamTheme.Apply(_OrderPanel);
             title.BackColor = _OrderCount.BackColor = Color.Transparent;
@@ -102,12 +108,20 @@ namespace SAM.Picker
             var timer = new Timer(components) { Interval = 500, Enabled = true };
             timer.Tick += (_, _) => TickOrder();
             FormClosed += (_, _) => { _Runner.Stop(); ReleaseOrderLease(); };
+            InitializeHistory(bar);
             RefreshOrderCart();
         }
 
         private void EditOrder(Action edit)
         {
-            try { if (_Runner.Running) return; edit(); RefreshOrderCart(); }
+            try
+            {
+                if (_Runner.Running) return;
+                edit();
+                _OrderStore.Update(cart => { OrderPaths.EnsureEditable(cart); cart.Checkpoint = null; });
+                _OrderMessage = "Panier modifié · les délais seront recalculés au démarrage.";
+                RefreshOrderCart();
+            }
             catch (Exception e) when (e is IOException || e is InvalidOperationException || e is UnauthorizedAccessException)
             { MessageBox.Show(this, e.Message, "Achievement Order"); }
         }
@@ -117,7 +131,7 @@ namespace SAM.Picker
             _TimingGameId = row.Game.GameId;
             _BindingOrder = true;
             _OrderGameName.Text = row.Game.Name;
-            _SuccessRange.Bind(_OrderStore.Read().Games.First(g => g.GameId == _TimingGameId).Delay);
+            _SuccessRange.Bind(row.Game.Delay);
             _BindingOrder = false;
         }
         private void RefreshOrderCart()
@@ -136,9 +150,14 @@ namespace SAM.Picker
             _BindingOrder = false;
             bool editable = !cart.IsRunning && !_Runner.Running;
             _OrderActions.Enabled = _SuccessRange.Enabled = _BetweenGames.Enabled = editable;
+            _OrderRows.AllowDrop = _OrderRows.ReorderEnabled = editable;
             _GameRange.Enabled = editable && cart.BetweenGames;
             _RunOrder.Enabled = editable && !_Demo && cart.Games.Any(g => g.Achievements.Any(a => a.Status != "done"));
-            _StopOrder.Enabled = _Runner.Running && _Runner.Phase != OrderPhase.Stopping;
+            _RunOrder.Text = cart.Checkpoint != null ? "Reprendre" : "Démarrer";
+            _PauseOrder.Enabled = _Runner.Running && _Runner.Phase != OrderPhase.Stopping && _Runner.Phase != OrderPhase.Pausing;
+            _StopOrder.Enabled = (_Runner.Running && _Runner.Phase != OrderPhase.Stopping) || (editable && cart.Checkpoint != null);
+            UpdateOrderEstimate(cart);
+            RefreshHistory(cart);
         }
         private void RemoveOrderItem()
         {
@@ -179,14 +198,33 @@ namespace SAM.Picker
                 _RunId = Guid.NewGuid().ToString("N"); _PendingCommand = null;
                 _OrderStore.Update(data => { OrderPaths.EnsureEditable(data); data.ActiveRun = _RunId; data.LeaseUntilUtc = DateTime.UtcNow.AddSeconds(15); foreach (var g in data.Games) foreach (var a in g.Achievements) if (a.Status != "done") a.Status = "En attente"; });
                 _LastLease = DateTime.UtcNow;
-                _OrderMessage = "Commande démarrée.";
+                _OrderMessage = cart.Checkpoint == null ? "Commande démarrée." : "Commande reprise · vérification Steam avant chaque envoi.";
+                _OrderStore.Update(data => { data.Checkpoint = _Runner.Snapshot(_OrderClock.Elapsed); OrderPlanning.Record(data, cart.Checkpoint == null ? "Démarrage" : "Reprise", _OrderMessage); });
                 RefreshOrderCart();
             }
             catch (Exception e) { _Runner.Fail(); _OrderMessage = e.Message; ReleaseOrderLease(); RefreshOrderCart(); }
         }
+        private void PauseOrder()
+        {
+            if (!_Runner.Running) return;
+            _Runner.Pause(_OrderClock.Elapsed);
+            _OrderMessage = _Runner.Phase == OrderPhase.Pausing ? "Pause demandée · attente de la confirmation Steam…" : "En pause · délai restant sauvegardé. Cliquez sur Reprendre pour continuer.";
+            SaveOrderCheckpoint("Pause", _OrderMessage);
+            if (!_Runner.Running) ReleaseOrderLease();
+            RefreshOrderCart();
+        }
+        private void SaveOrderCheckpoint(string action = null, string detail = null)
+        {
+            _OrderStore.Update(cart =>
+            {
+                cart.Checkpoint = _Runner.Snapshot(_OrderClock.Elapsed);
+                if (action != null) OrderPlanning.Record(cart, action, detail);
+            });
+        }
         private void StopOrder()
         {
             _Runner.Stop();
+            _OrderStore.Update(cart => { cart.Checkpoint = null; OrderPlanning.Record(cart, "Arrêt", "Le panier est conservé ; les délais seront recalculés au prochain démarrage."); });
             _OrderMessage = _Runner.Phase == OrderPhase.Stopping ? "Arrêt demandé · attente de l’envoi en cours, aucun succès suivant." : "Commande arrêtée. Le panier est conservé.";
             if (!_Runner.Running) ReleaseOrderLease();
             RefreshOrderCart();
@@ -213,7 +251,7 @@ namespace SAM.Picker
                 {
                     if ((DateTime.UtcNow - _LastLease).TotalSeconds >= 1)
                     {
-                        _OrderStore.Update(cart => { if (cart.ActiveRun != _RunId) throw new InvalidOperationException("Une autre commande a pris la main."); cart.LeaseUntilUtc = DateTime.UtcNow.AddSeconds(15); });
+                        _OrderStore.Update(cart => { if (cart.ActiveRun != _RunId) throw new InvalidOperationException("Une autre commande a pris la main."); cart.LeaseUntilUtc = DateTime.UtcNow.AddSeconds(15); cart.Checkpoint = _Runner.Phase == OrderPhase.Stopping ? null : _Runner.Snapshot(_OrderClock.Elapsed); });
                         _LastLease = DateTime.UtcNow;
                     }
                     if (_PendingCommand != null)
@@ -222,15 +260,19 @@ namespace SAM.Picker
                         if (command.Id == _PendingCommand && command.State != "requested")
                         {
                             bool success = command.State == "done";
+                            var completedStep = _Runner.Current;
                             if (_Runner.Confirm(command.GameId, command.AchievementId, success, _OrderClock.Elapsed))
                             {
-                                _OrderStore.Update(cart => { var game = cart.Games.First(g => g.GameId == command.GameId); game.Achievements.First(a => a.Id == command.AchievementId).Status = success ? "done" : "failed"; });
-                                _OrderMessage = success ? command.Message : "Commande arrêtée : " + command.Message;
+                                _OrderStore.Update(cart => { var game = cart.Games.First(g => g.GameId == command.GameId); game.Achievements.First(a => a.Id == command.AchievementId).Status = success ? "done" : "failed";
+                                    cart.Checkpoint = _Runner.Phase == OrderPhase.Stopped ? null : _Runner.Snapshot(_OrderClock.Elapsed);
+                                    OrderPlanning.Record(cart, success ? "Succès" : "Erreur", command.Message, completedStep);
+                                    if (_Runner.Phase == OrderPhase.Completed) OrderPlanning.Record(cart, "Terminé", "Tous les succès de cette commande sont confirmés."); });
+                                _OrderMessage = _Runner.Phase == OrderPhase.Paused ? "En pause · délai restant sauvegardé." : success ? command.Message : "Commande arrêtée : " + command.Message;
                                 _PendingCommand = null;
                             }
                         }
                         else if (_CommandClock.Elapsed > TimeSpan.FromSeconds(120))
-                        { _Runner.Fail(); _OrderMessage = "Le jeu ne répond pas. Aucun autre succès ne sera envoyé. Vérifiez sa vue avant de réessayer."; _PendingCommand = null; }
+                        { _Runner.Fail(); _OrderMessage = "Le jeu ne répond pas. Aucun autre succès ne sera envoyé. Vérifiez sa vue avant de réessayer."; SaveOrderCheckpoint("Erreur", _OrderMessage); _PendingCommand = null; }
                     }
                     var step = _Runner.Tick(_OrderClock.Elapsed);
                     if (step != null)
@@ -239,12 +281,14 @@ namespace SAM.Picker
                         _PendingCommand = Guid.NewGuid().ToString("N");
                         _Commands.Update(command => { command.Id = _PendingCommand; command.RunId = _RunId; command.GameId = step.GameId; command.AchievementId = step.Achievement.Id; command.State = "requested"; command.Message = null; });
                         _CommandClock.Restart();
-                        _OrderStore.Update(cart => cart.Games.First(g => g.GameId == step.GameId).Achievements.First(a => a.Id == step.Achievement.Id).Status = "sending");
+                        _OrderStore.Update(cart => { cart.Games.First(g => g.GameId == step.GameId).Achievements.First(a => a.Id == step.Achievement.Id).Status = "sending"; cart.Checkpoint = _Runner.Snapshot(_OrderClock.Elapsed); });
                     }
                     if (!_Runner.Running) ReleaseOrderLease();
                 }
-                string timing = _Runner.Running ? _Runner.Phase == OrderPhase.Confirmation || _Runner.Phase == OrderPhase.Stopping ? "Confirmation Steam…" : (_Runner.Phase == OrderPhase.GameDelay ? "Pause entre jeux · " : "Prochain succès · ") + FormatRemaining(_Runner.Deadline - _OrderClock.Elapsed) : _OrderMessage;
-                _OrderStatus.Text = $"{_Runner.Completed}/{_Runner.Total} · {timing}";
+                string timing = _Runner.Running ? _Runner.Phase == OrderPhase.Confirmation || _Runner.Phase == OrderPhase.Pausing || _Runner.Phase == OrderPhase.Stopping ? "Confirmation Steam…" : (_Runner.Phase == OrderPhase.GameDelay ? "Pause entre jeux · " : "Prochain succès · ") + FormatRemaining(_Runner.Deadline - _OrderClock.Elapsed) : _OrderMessage;
+                var currentCart = _OrderStore.Read();
+                if (!_Runner.Running && _Runner.Phase == OrderPhase.Idle && currentCart.Checkpoint != null) timing = "Commande sauvegardée · cliquez sur Reprendre. Le temps hors ligne ne réduit pas le délai.";
+                _OrderStatus.Text = $"{currentCart.Games.Sum(g => g.Achievements.Count(a => a.Status == "done"))}/{currentCart.Count} · {timing}";
                 RefreshOrderCart();
             }
             catch (Exception e) when (e is IOException || e is InvalidOperationException || e is UnauthorizedAccessException)

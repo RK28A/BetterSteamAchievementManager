@@ -77,7 +77,8 @@ namespace SAM.Game
             _AchievementsTabPage.Controls.Add(_SelectionText);
             _AchievementsToolStrip.Items.Clear();
             _AchievementsToolStrip.Items.AddRange(new ToolStripItem[] { new ToolStripLabel("Rechercher"), _MatchingStringTextBox, new ToolStripSeparator(), new ToolStripLabel("Afficher"), _DisplayLockedOnlyButton, _DisplayUnlockedOnlyButton });
-            _MatchingStringTextBox.Width = 220;
+            InitializeDiscovery();
+            _MatchingStringTextBox.Width = 150;
             _MatchingStringTextBox.ToolTipText = "Nom, description ou identifiant du succès";
             _MatchingStringTextBox.TextChanged += (_, _) => RefilterCards();
             _DisplayLockedOnlyButton.Text = "Non débloqués";
@@ -157,9 +158,8 @@ namespace SAM.Game
             var search = _MatchingStringTextBox.Text.Trim();
             _Cards.BeginUpdate();
             _Cards.Items.Clear();
-            foreach (ListViewItem item in _AchievementListView.Items)
+            foreach (var info in SortAchievements(_AchievementListView.Items.Cast<ListViewItem>().Select(i => (Stats.AchievementInfo)i.Tag)))
             {
-                if (item.Tag is not Stats.AchievementInfo info) continue;
                 if (_DisplayLockedOnlyButton.Checked && info.IsAchieved) continue;
                 if (_DisplayUnlockedOnlyButton.Checked && !info.IsAchieved) continue;
                 if (search.Length > 0 && (info.Name ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0 &&
@@ -198,7 +198,7 @@ namespace SAM.Game
             _IsUpdatingAchievementList = true;
             for (int i = 0; i < names.Length; i++)
             {
-                var info = new Stats.AchievementInfo { Id = "DEMO_" + i, Name = names[i], Description = "Explorez, découvrez et accomplissez un nouvel objectif.", IsAchieved = i < 2, Permission = i == 6 ? 3 : 0 };
+                var info = new Stats.AchievementInfo { Id = "DEMO_" + i, Name = names[i], Description = "Explorez, découvrez et accomplissez un nouvel objectif.", IsAchieved = i < 2, Permission = i == 6 ? 3 : 0, GlobalPercent = i == 6 ? null : 72.5 / (i + 1), UnlockTime = i < 2 ? DateTime.Now.AddDays(-3 + i) : null };
                 info.Item = new ListViewItem(info.Name) { Tag = info, Checked = info.IsAchieved };
                 _AchievementListView.Items.Add(info.Item);
                 using var icon = new Bitmap(64, 64);
@@ -212,7 +212,8 @@ namespace SAM.Game
             _QueueStatus.Text = "La file reste désactivée dans la démonstration.";
             EnableInput();
             _StoreButton.Enabled = _StartQueue.Enabled = _ResetButton.Enabled = false;
-            RefilterCards();
+            _RarityStatus.Text = "Rareté de démonstration";
+            RefilterCards(); PublishLibraryProgress();
         }
     }
 }

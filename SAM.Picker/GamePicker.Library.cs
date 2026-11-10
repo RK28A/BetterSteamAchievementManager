@@ -100,9 +100,16 @@ namespace SAM.Picker
             bool open = false;
             foreach (var session in _Sessions.Values) if (!session.Process.HasExited) open = true;
             if (open && MessageBox.Show(this,
-                "Fermer la bibliothèque ? Les files en cours seront arrêtées et les modifications non enregistrées seront perdues.",
+                "Fermer la bibliothèque ? Achievement Order sera sauvegardé pour une reprise manuelle. Les modifications manuelles non enregistrées seront perdues.",
                 "Fermer BetterSteamAchievementManager", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             { e.Cancel = true; return; }
+            if (_PendingCommand != null && _Runner.Running)
+            {
+                PauseOrder();
+                MessageBox.Show(this, "Une confirmation Steam est en cours. La commande passera en pause à sa réception ; vous pourrez ensuite fermer la fenêtre.", "Confirmation en cours");
+                e.Cancel = true; return;
+            }
+            if (_Runner.Running) { _Runner.Pause(_OrderClock.Elapsed); SaveOrderCheckpoint("Fermeture", "Commande sauvegardée pour une reprise manuelle."); }
             _ClosingLibrary = true;
             _Runner.Stop();
             ReleaseOrderLease();
@@ -118,7 +125,7 @@ namespace SAM.Picker
         private void LoadDemoLibrary()
         {
             _AddGameButton.Enabled = _AddGameTextBox.Enabled = _RefreshGamesButton.Enabled = false;
-            foreach (var game in new[] { new GameInfo(620, "normal") { Name = "Portal 2" }, new GameInfo(400, "normal") { Name = "Portal" }, new GameInfo(730, "normal") { Name = "Counter-Strike 2" } })
+            foreach (var game in new[] { new GameInfo(620, "normal") { Name = "Portal 2", Installed = true }, new GameInfo(400, "normal") { Name = "Portal", Installed = true }, new GameInfo(730, "normal") { Name = "Counter-Strike 2" } })
                 _Games.Add(game.Id, game);
             RefreshGames();
             _PickerStatusLabel.Text = "MODE DÉMONSTRATION — aucune connexion Steam, aucune modification de compte";

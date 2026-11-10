@@ -58,7 +58,7 @@
             this._MatchingStringLabel = new System.Windows.Forms.ToolStripLabel();
             this._MatchingStringTextBox = new System.Windows.Forms.ToolStripTextBox();
             this._StatisticsTabPage = new System.Windows.Forms.TabPage();
-            this._EnableStatsEditingCheckBox = new System.Windows.Forms.CheckBox();
+            this._EnableStatsEditingCheckBox = new SAM.UI.SteamCheckBox();
             this._StatisticsDataGridView = new System.Windows.Forms.DataGridView();
             _ToolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             _ToolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
