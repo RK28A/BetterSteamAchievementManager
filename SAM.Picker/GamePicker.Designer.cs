@@ -124,6 +124,8 @@ namespace SAM.Picker
             Controls.Add(_PickerStatusStrip);
             Controls.Add(top);
             SteamTheme.Apply(this);
+            welcome.BackColor = Color.Transparent;
+            foreach (Control child in welcome.Controls) child.BackColor = Color.Transparent;
             _GameListView.BackColor = SteamTheme.Sidebar;
             top.BackColor = SteamTheme.Background;
             ResumeLayout(true);
