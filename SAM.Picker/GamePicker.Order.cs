@@ -53,10 +53,12 @@ namespace SAM.Picker
             _OrderPanel = new Panel { Dock = DockStyle.Fill, BackColor = SteamTheme.Background };
             // Reserve a measured row for navigation instead of squeezing a right-docked
             // button below top-docked labels in a fixed-height header.
-            var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            var header = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = false, Height = 160,
                 ColumnCount = 1, RowCount = 3, Padding = new Padding(22, 10, 14, 8), Margin = Padding.Empty };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 3; i++) header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 43));
+            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var title = SteamTheme.Label("Achievement Order", 24); title.Dock = DockStyle.Top;
             _OrderCount = SteamTheme.Label("Votre panier multi-jeux", 11, SteamTheme.Muted); _OrderCount.Dock = DockStyle.Top;
             title.Margin = _OrderCount.Margin = Padding.Empty;
