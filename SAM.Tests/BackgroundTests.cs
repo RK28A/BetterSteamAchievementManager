@@ -32,6 +32,16 @@ internal static class BackgroundTests
         check(BackgroundPlanning.DefaultWindowHours(40, 15 + 2.0 / 60) == 24.96, "default unlock window never rounds beyond the remaining hours from Steam's minute precision");
         var sequence = BackgroundPlanning.Schedule(new[] { "A", "B", "A", "C" }, 60, 600, () => 0.5);
         check(sequence.Count == 3 && sequence.Select(a => a.Id).Distinct().Count() == 3 && sequence[0].AtSeconds >= 60 && sequence.Last().AtSeconds <= 600 && sequence.Zip(sequence.Skip(1), (a,b) => b.AtSeconds > a.AtSeconds).All(x => x), "random schedule de-duplicates and spreads achievements inside the chosen period");
+        var spaced = BackgroundPlanning.Schedule(new[] { "A", "B", "C" }, 0, 100 * 3600, () => 0.5);
+        check(spaced.Count == 3 && spaced[0].AtSeconds / 3600 >= 20 && spaced[0].AtSeconds / 3600 <= 32 &&
+            spaced[1].AtSeconds / 3600 >= 53 && spaced[1].AtSeconds / 3600 <= 66 &&
+            spaced[2].AtSeconds / 3600 >= 86 && spaced[2].AtSeconds / 3600 <= 99 &&
+            spaced.Zip(spaced.Skip(1), (a, b) => (b.AtSeconds - a.AtSeconds) / 3600 >= 20).All(x => x),
+            "three achievements cover a 100-hour session with generous gaps");
+        var extremes = BackgroundPlanning.Schedule(new[] { "A", "B", "C" }, 0, 100 * 3600,
+            new Func<double>(() => 0));
+        check(extremes.Zip(extremes.Skip(1), (a, b) => b.AtSeconds - a.AtSeconds >= 0.65 * (100 * 3600 / 3.0)).All(x => x),
+            "even extreme random values keep achievements well separated");
         string folder = Path.Combine(Path.GetTempPath(), "BSAM-Background-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
         try
         {
