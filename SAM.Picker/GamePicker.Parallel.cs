@@ -32,8 +32,9 @@ namespace SAM.Picker
         private string GameCommandPath(uint id) => Path.Combine(Path.GetDirectoryName(_CommandPath), "command-" + id + ".json");
         private void InitializeParallelOrder(TableLayoutPanel header)
         {
-            _ParallelModeButton = new Button { Text = "Mode simultané →", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                MinimumSize = new Size(185, 40), Margin = new Padding(0, 8, 0, 0), AccessibleName = "Ouvrir le mode simultané" };
+            _ParallelModeButton = new Button { Text = "Mode simultané →", AutoSize = false,
+                Size = new Size(195, 42), Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Margin = new Padding(0, 6, 0, 4), AccessibleName = "Ouvrir le mode simultané" };
             header.Controls.Add(_ParallelModeButton, 0, 2); SteamTheme.Apply(_ParallelModeButton);
             _ParallelModeButton.Click += (_, _) => ParallelAction(() => { RefreshParallelGames(); _ParallelPanel.BringToFront(); });
             _ParallelPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
