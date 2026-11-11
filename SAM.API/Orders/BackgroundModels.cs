@@ -59,14 +59,31 @@ namespace SAM.API.Orders
                 throw new InvalidOperationException("La durée doit être comprise entre 0 et 8 760 heures (strictement positive pour une session).");
             return n;
         }
-        // Stratified sampling spreads achievements across the selected active-time window.
-        // The sampled schedule is persisted once and never resampled on recovery.
+        // Divide the entire active-time window into equal slots, then vary each unlock
+        // inside the later portion of its own slot. This keeps a substantial gap
+        // between consecutive unlocks and uses the full requested duration.
+        // Once generated, the schedule is persisted and is not reshuffled on restart.
         public static List<PlannedAchievement> Schedule(IEnumerable<string> ids, double from, double to, Func<double> random)
         {
-            if (double.IsNaN(from) || double.IsNaN(to) || double.IsInfinity(to) || from < 0 || to <= from || to > MaxHours * 3600)
+            if (double.IsNaN(from) || double.IsInfinity(from) || double.IsNaN(to) || double.IsInfinity(to) ||
+                from < 0 || to <= from || to > MaxHours * 3600)
                 throw new InvalidOperationException("La fin de la période doit dépasser son début et rester dans la durée de session.");
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            if (random == null) throw new ArgumentNullException(nameof(random));
             var values = ids.Distinct().Select(id => new { Id = id, Key = random() }).OrderBy(x => x.Key).ToArray();
-            return values.Select((x, i) => new PlannedAchievement { Id = x.Id, AtSeconds = from + (i + Math.Max(0, Math.Min(1, random()))) / values.Length * (to - from) }).ToList();
+            if (values.Length == 0) return new List<PlannedAchievement>();
+            double slot = (to - from) / values.Length;
+            return values.Select((x, i) =>
+            {
+                double sample = random();
+                if (double.IsNaN(sample) || double.IsInfinity(sample)) sample = 0.5;
+                sample = Math.Max(0, Math.Min(1, sample));
+                return new PlannedAchievement
+                {
+                    Id = x.Id,
+                    AtSeconds = from + (i + 0.60 + 0.35 * sample) * slot
+                };
+            }).ToList();
         }
         public static double DefaultWindowHours(double targetHours, double? steamHours) =>
             Math.Floor(Math.Max(0, Math.Round(targetHours, 2) - (steamHours ?? 0)) * 100 + 0.0000001) / 100;
