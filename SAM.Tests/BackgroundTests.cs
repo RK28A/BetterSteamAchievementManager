@@ -38,8 +38,9 @@ internal static class BackgroundTests
             spaced[2].AtSeconds / 3600 >= 86 && spaced[2].AtSeconds / 3600 <= 99 &&
             spaced.Zip(spaced.Skip(1), (a, b) => (b.AtSeconds - a.AtSeconds) / 3600 >= 20).All(x => x),
             "three achievements cover a 100-hour session with generous gaps");
+        int randomIndex = 0;
         var extremes = BackgroundPlanning.Schedule(new[] { "A", "B", "C" }, 0, 100 * 3600,
-            new Func<double>(() => 0));
+            () => randomIndex++ % 2 == 0 ? 0 : 1);
         check(extremes.Zip(extremes.Skip(1), (a, b) => b.AtSeconds - a.AtSeconds >= 0.65 * (100 * 3600 / 3.0)).All(x => x),
             "even extreme random values keep achievements well separated");
         string folder = Path.Combine(Path.GetTempPath(), "BSAM-Background-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
