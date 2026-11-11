@@ -33,9 +33,11 @@ namespace SAM.Picker
         private void InitializeParallelOrder(TableLayoutPanel header)
         {
             _ParallelModeButton = new Button { Text = "Mode simultané →", AutoSize = false,
-                Size = new Size(195, 42), Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Margin = new Padding(0, 6, 0, 4), AccessibleName = "Ouvrir le mode simultané" };
-            header.Controls.Add(_ParallelModeButton, 0, 2); SteamTheme.Apply(_ParallelModeButton);
+                Size = new Size(195, 42), Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Margin = new Padding(8, 12, 0, 0), AccessibleName = "Ouvrir le mode simultané" };
+            header.Controls.Add(_ParallelModeButton, 1, 0);
+            header.SetRowSpan(_ParallelModeButton, 2);
+            SteamTheme.Apply(_ParallelModeButton);
             _ParallelModeButton.Click += (_, _) => ParallelAction(() => { RefreshParallelGames(); _ParallelPanel.BringToFront(); });
             _ParallelPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
             var heading = SteamTheme.Label("Achievement Order / Simultané", 21); heading.Dock = DockStyle.Top;
